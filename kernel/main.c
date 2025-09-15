@@ -1,6 +1,8 @@
 void uartinit(void);
 void uart_puts(char *s);
 void printf(char *fmt, ...);
+void clear_screen(void);
+void clear_line(void);
 int main(){
     uartinit();
     uart_puts("Hello, OS!\n");
@@ -13,6 +15,8 @@ int main(){
     printf("Testingpercent:%%\n");
     printf("INT_MAX:%d\n",2147483647);
     printf("INT_MIN:%d\n",-2147483648);
-    printf("NULLstring:%s\n",(char*)0);printf("Emptystring:%s\n","");
+    printf("NULLstring:%s\n",(char*)0);
+    printf("Emptystring:%s","");
+    clear_screen();
     while(1);
 }
