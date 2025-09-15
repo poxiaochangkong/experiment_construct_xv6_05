@@ -14,7 +14,8 @@ consputc(int c)
 void 
 clear_screen(void)
 {
-  printf("\033[2J"); // ANSI escape code: clear screen
+  printf("\033[2J"); // ANSI escape code: clear screen，change 2 to 1 to clear screen in another way.
+  //it will clear all on the screen litearlly.
   printf("\033[H");  // ANSI escape code: move cursor to home position
 }
 void 
