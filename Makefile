@@ -13,7 +13,7 @@ CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb
 CFLAGS += -MD
 CFLAGS += -mcmodel=medany
 CFLAGS += -ffreestanding -fno-common -nostdlib
-CFLAGS += -I. # 允许 #include "uart.h" 这样的写法
+CFLAGS += -I. -Iinclude# 允许 #include "uart.h" 这样的写法
 
 # 4. 设置链接器参数
 LDFLAGS = -z max-page-size=4096
@@ -24,6 +24,8 @@ OBJS = \
 	kernel/boot/start.o \
 	kernel/main.o \
 	kernel/uart.o \
+	kernel/printf.o \
+	kernel/console.o \
 
 # 6. 定义最终目标：内核文件 kernel
 #    它依赖于所有的 .o 文件和一个链接器脚本
