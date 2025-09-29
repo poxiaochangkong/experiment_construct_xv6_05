@@ -5,6 +5,12 @@
 .section .text
 .global _entry
 _entry:
+        la a0, sbss      # a0 = BSS 段起始地址
+        la a1, ebss      # a1 = BSS 段结束地址
+bss_loop:
+        sd zero, (a0)    # 将 8 字节的 0 写入 a0 指向的地址
+        addi a0, a0, 8   # a0 指针增加 8 字节
+        blt a0, a1, bss_loop # 如果 a0 < a1，则继续循环
         # set up a stack for C.
         # stack0 is declared in start.c,
         # with a 4096-byte stack per CPU.
