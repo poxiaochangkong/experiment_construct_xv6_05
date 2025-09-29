@@ -36,8 +36,10 @@ SECTIONS
 
   .bss : {
     . = ALIGN(16);
+    PROVIDE(sbss = .);/*标记BSS段开始 */
     *(.sbss .sbss.*) /* do not need to distinguish this from .bss */
     . = ALIGN(16);
+    PROVIDE(ebss = .); /*标记BSS段结束 */
     *(.bss .bss.*)
   }
 

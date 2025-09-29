@@ -46,7 +46,11 @@ kernel.elf: $(OBJS) $(LDSCRIPT)
 
 # 9. 定义 `clean` 规则，用于删除所有生成的文件，保持目录干净
 clean:
-	rm -f *.o kernel.elf *.asm *.sym *.d
+	# 使用 find 命令递归删除所有 .o 和 .d 文件
+	find . -name "*.o" -delete
+	find . -name "*.d" -delete
+	# 删除根目录下的其他生成文件
+	rm -f kernel.elf kernel.asm kernel.sym
 
 # 10. 定义运行 QEMU 的规则
 QEMU = qemu-system-riscv64
