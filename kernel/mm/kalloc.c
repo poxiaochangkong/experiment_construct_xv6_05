@@ -14,6 +14,7 @@ struct {
 
 void freerange(void *pa_start, void *pa_end);
 void memset(void *dst, int c, uint64 n);
+void printf(char*, ...);
 
 void
 pmm_init(void)
@@ -36,7 +37,7 @@ free_page(void *page)
   struct run *r;
 
   if(((uint64)page % PGSIZE) != 0 || (char*)page < end || (uint64)page >= PHYSTOP)
-    panic("kfree");
+    printf("kfree");
 
   // Fill with junk to catch dangling refs.
   memset(page, 1, PGSIZE);
