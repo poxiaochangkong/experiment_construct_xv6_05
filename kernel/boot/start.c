@@ -9,7 +9,7 @@ __attribute__ ((aligned (16))) char stack0[4096 * 1];
 // entry.S jumps here in machine mode on stack0.
 
 // 一个简单的 memset 函数实现
-static void
+void
 memset(void *dst, int c, unsigned int n)
 {
   char *cdst = (char *) dst;
