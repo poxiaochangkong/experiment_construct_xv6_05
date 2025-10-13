@@ -1,5 +1,6 @@
 #include <stdarg.h>
 #include "types.h"
+#include "defs.h"
 
 static char digits[] = "0123456789abcdef";
 void consputc(int);
@@ -107,4 +108,13 @@ printf(char *fmt, ...)
  
 
   return 0;
+}
+
+void
+panic(char *s)
+{
+  printf("panic: ");
+  printf("%s\n", s);
+  for(;;)
+    ;
 }
