@@ -13,8 +13,7 @@ struct {
 } kmem;
 
 void freerange(void *pa_start, void *pa_end);
-void memset(void *dst, int c, uint64 n);
-void printf(char*, ...);
+
 
 void
 pmm_init(void)
@@ -82,7 +81,7 @@ alloc_pages(int n){
 void 
 destroy_pagetable(pagetable_t pt){
   for(int i = 0; i < 512; i++){
-    pte_t pte = pt[i];
+    pde_t pte = pt[i];
     if((pte & PTE_V) && (pte & (PTE_R | PTE_W | PTE_X)) == 0){//有效且是二级或一级页表
       uint64 child = PTE2PA(pte);
       destroy_pagetable((pagetable_t)child);

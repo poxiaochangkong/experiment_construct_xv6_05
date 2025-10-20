@@ -2,13 +2,15 @@
 #include "types.h"
 #include "defs.h"
 
-// 辅助函数（内部使用）
-pte_t* walk_create(pagetable_t pt, uint64 va);//返回va对应的页表项，没有则创建
-pte_t* walk_lookup(pagetable_t pt, uint64 va);//查找页表项
+pagetable_t kernel_pagetable;
 
-pte_t*
+// 辅助函数（内部使用）
+pde_t* walk_create(pagetable_t pt, uint64 va);//返回va对应的页表项，没有则创建
+pde_t* walk_lookup(pagetable_t pt, uint64 va);//查找页表项
+
+pde_t*
 walk_lookup(pagetable_t pt, uint64 va){
-    pte_t *pte;
+    pde_t *pte;
     for(int level = 2; level > 0; level--){
         pte = &pt[VPN_MASK(va, level)];
         if((*pte & PTE_V) == 0)//此时该表项无效/不存在
@@ -19,9 +21,9 @@ walk_lookup(pagetable_t pt, uint64 va){
     return pte;
 }
 
-pte_t*
+pde_t*
 walk_create(pagetable_t pt, uint64 va){
-    pte_t *pte;
+    pde_t *pte;
     for(int level = 2; level > 0; level--){
         pte = &pt[VPN_MASK(va, level)];
         if((*pte & PTE_V) == 0){//此时该表项无效/不存在
@@ -39,9 +41,9 @@ walk_create(pagetable_t pt, uint64 va){
     return pte;
 }
 
-pte_t *
+pde_t *
 walk(pagetable_t pagetable, uint64 va, int alloc){
-    pte_t *pte;
+    pde_t *pte;
     if(alloc)
         pte = walk_create(pagetable, va);
     else
@@ -53,7 +55,7 @@ walk(pagetable_t pagetable, uint64 va, int alloc){
 
 int 
 map_page(pagetable_t pt, uint64 va, uint64 pa, int perm){
-    pte_t *pte;
+    pde_t *pte;
     if(va % PGSIZE != 0 || pa % PGSIZE != 0)
         return -1;
     pte = walk_create(pt, va);
@@ -78,7 +80,7 @@ create_pagetable(void){
 void 
 destroy_pagetable(pagetable_t pt){
   for(int i = 0; i < 512; i++){
-    pte_t pte = pt[i];
+    pde_t pte = pt[i];
     if((pte & PTE_V) && (pte & (PTE_R | PTE_W | PTE_X)) == 0){//有效且是二级或一级页表
       uint64 child = PTE2PA(pte);
       destroy_pagetable((pagetable_t)child);
@@ -93,7 +95,7 @@ destroy_pagetable(pagetable_t pt){
 void 
 dump_pagetable(pagetable_t pt, int level){
     for(int i = 0; i < 512; i++){
-        pte_t pte = pt[i];
+        pde_t pte = pt[i];
         if(pte & PTE_V){
         for(int j = 0; j < level; j++)
             printf("  ");
@@ -119,3 +121,24 @@ kvmmap(pagetable_t kpgtbl, uint64 va, uint64 pa, uint64 sz, int perm)
         pa += PGSIZE;
     }
 }
+
+void kvminithart(void) {
+    // 激活内核页表
+    w_satp(MAKE_SATP(kernel_pagetable));
+    sfence_vma();
+}
+void 
+kvminit(void){
+    // 1. 创建内核页表
+    kernel_pagetable = create_pagetable();
+
+    // 2. 映射内核代码段（R+X权限）
+    kvmmap(kernel_pagetable, KERNBASE, KERNBASE,
+        (uint64)etext - KERNBASE, PTE_R | PTE_X);
+    // 3. 映射内核数据段（R+W权限）
+    kvmmap(kernel_pagetable, (uint64)etext, (uint64)etext,
+    PHYSTOP - (uint64)etext, PTE_R | PTE_W);
+
+    // 4. 映射设备（UART等）
+    kvmmap(kernel_pagetable, UART0, UART0, PGSIZE, PTE_R | PTE_W);
+ }
