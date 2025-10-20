@@ -89,3 +89,33 @@ destroy_pagetable(pagetable_t pt){
   }
   free_page((void*)pt);
 }
+
+void 
+dump_pagetable(pagetable_t pt, int level){
+    for(int i = 0; i < 512; i++){
+        pte_t pte = pt[i];
+        if(pte & PTE_V){
+        for(int j = 0; j < level; j++)
+            printf("  ");
+        uint64 va = (uint64)i << VPN_SHIFT(level);
+        printf("VA: 0x%lx -> PTE: 0x%lx\n", va, pte);
+        if((pte & (PTE_R | PTE_W | PTE_X)) == 0){//不是叶子节点
+            uint64 child = PTE2PA(pte);
+            dump_pagetable((pagetable_t)child, level - 1);
+        }
+        }
+    }
+}
+
+void
+kvmmap(pagetable_t kpgtbl, uint64 va, uint64 pa, uint64 sz, int perm)
+{
+    uint64 a, last;
+    a = PGROUNDDOWN(va);
+    last = PGROUNDUP(va + sz);
+    for(; a < last; a += PGSIZE){
+        if(map_page(kpgtbl, a, pa, perm) != 0)
+        panic("kvmmap");
+        pa += PGSIZE;
+    }
+}
