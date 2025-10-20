@@ -114,11 +114,18 @@ void
 kvmmap(pagetable_t kpgtbl, uint64 va, uint64 pa, uint64 sz, int perm)
 {
     uint64 a, last;
+
+    if (sz == 0) // 处理大小为0的情况
+        return;
+
     a = PGROUNDDOWN(va);
-    last = PGROUNDUP(va + sz);
-    for(; a < last; a += PGSIZE){
+    last = PGROUNDDOWN(va + sz - 1); // 修改这里
+    for(;;){ // 使用无限循环，在内部判断
         if(map_page(kpgtbl, a, pa, perm) != 0)
-        panic("kvmmap");
+            panic("kvmmap");
+        if (a == last)
+            break;
+        a += PGSIZE;
         pa += PGSIZE;
     }
 }
