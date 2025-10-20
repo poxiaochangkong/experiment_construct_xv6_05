@@ -19,3 +19,4 @@ void destroy_pagetable(pagetable_t pt);// 销毁页表pt，对应vm.c中的uvmfr
 void dump_pagetable(pagetable_t pt, int level);// 实现页表打印功能用于调试
 void kvmmap(pagetable_t kpgtbl, uint64 va, uint64 pa, uint64 sz, int perm);
 void kvminit(void);// 初始化内核页表，对应vm.c中的kvminit函数
+void kvminithart(void);// 激活内核页表，对应vm.c中的kvminithart函数
