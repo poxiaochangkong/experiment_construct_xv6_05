@@ -150,3 +150,27 @@ kvminit(void){
     // 4. 映射设备（UART等）
     kvmmap(kernel_pagetable, UART0, UART0, PGSIZE, PTE_R | PTE_W);
  }
+
+
+ void test_pagetable(void) {
+ pagetable_t pt = create_pagetable();
+
+ // 测试基本映射
+ uint64 va = 0x1000000;
+ uint64 pa = (uint64)alloc_page();
+ assert(map_page(pt, va, pa, PTE_R | PTE_W) == 0);
+
+ // 测试地址转换
+ pde_t *pte = walk_lookup(pt, va);
+ assert(pte != 0 && (*pte & PTE_V));
+ assert(PTE2PA(*pte) == pa);
+
+ // 测试权限位
+ assert(*pte & PTE_R);
+ assert(*pte & PTE_W);
+ assert(!(*pte & PTE_X));
+ }
+
+ void test_virtual_memory(void) {
+    
+ }
