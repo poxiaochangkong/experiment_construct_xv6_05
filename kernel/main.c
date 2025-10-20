@@ -6,6 +6,8 @@ void uart_puts(char *s);
 
 void clear_screen(void);
 void clear_line(void);
+
+void test_physical_memory(void);
 int main(){
     uartinit();
     uart_puts("Hello, OS!\n");
@@ -22,6 +24,7 @@ int main(){
     printf("Emptystring:%s","");
     clear_screen();
     pmm_init();         // physical page allocator
+    test_physical_memory();
     kvminit();       // create kernel page table
     kvminithart();   // turn on paging
     uart_puts("Hello, OS!\n");

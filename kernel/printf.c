@@ -118,3 +118,10 @@ panic(char *s)
   for(;;)
     ;
 }
+
+void
+assert(int condition)
+{
+  if(!condition)
+    panic("assertion failed");
+}

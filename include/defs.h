@@ -4,6 +4,7 @@ memset(void *dst, int c, unsigned int n);
 //printf.c
 void panic(char *s);
 int printf(char *fmt, ...);
+void assert(int condition);
 
 //kalloc.c
 void pmm_init(void); // 初始化内存管理器，对应kalloc.c中的kinit函数

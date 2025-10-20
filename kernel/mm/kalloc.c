@@ -92,3 +92,23 @@ alloc_pages(int n){
 //   }
 //   free_page((void*)pt);
 // }
+
+void test_physical_memory(void) {
+// 测试基本分配和释放
+ void *page1 = alloc_page();
+ void *page2 = alloc_page();
+ assert(page1 != page2);
+ assert(((uint64)page1 & 0xFFF) == 0); // 页对齐检查
+
+ // 测试数据写入
+ *(int*)page1 = 0x12345678;
+ assert(*(int*)page1 == 0x12345678);
+
+ // 测试释放和重新分配
+ free_page(page1);
+ void *page3 = alloc_page();
+ // page3可能等于page1（取决于分配策略）
+
+ free_page(page2);
+ free_page(page3);
+ }
