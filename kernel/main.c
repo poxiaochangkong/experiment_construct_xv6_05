@@ -10,6 +10,7 @@ void clear_line(void);
 void test_physical_memory(void);
 void test_pagetable(void);
 
+void test_virtual_memory(void);
 int main(){
     uartinit();
     uart_puts("Hello, OS!\n");
@@ -28,8 +29,9 @@ int main(){
     pmm_init();         // physical page allocator
     test_physical_memory();
     test_pagetable();
-    kvminit();       // create kernel page table
-    kvminithart();   // turn on paging
+    test_virtual_memory();
+    // kvminit();       // create kernel page table
+    // kvminithart();   // turn on paging
     uart_puts("Hello, OS!\n");
     printf("Testinginteger:%d\n",42);
     printf("Testingnegative:%d\n",-123);

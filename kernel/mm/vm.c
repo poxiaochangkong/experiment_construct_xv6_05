@@ -171,6 +171,49 @@ kvminit(void){
  assert(!(*pte & PTE_X));
  }
 
- void test_virtual_memory(void) {
-    
- }
+ // 定义一个全局变量用于测试数据段的访问
+volatile static int test_data_integrity = 0xDEADBEEF;
+
+void test_virtual_memory(void) {
+  printf("--- Starting test_virtual_memory ---\n");
+  
+  // 1. 分页启用前的状态检查
+  printf("Value before enabling paging: 0x%x\n", test_data_integrity);
+  printf("Calling printf before paging works.\n");
+  
+  // 2. 启用分页
+  printf("Enabling virtual memory...\n");
+  kvminit();
+  kvminithart();
+  printf("Virtual memory enabled.\n");
+  
+  // 3. 分页启用后的状态验证
+
+  // 测试1: 内核代码仍然可执行
+  // 如果程序能执行到这里并打印信息，说明PC可以正确地从虚拟地址翻译，代码段映射成功。
+  printf("Kernel code execution test: PASSED (still running after kvminithart)\n");
+
+  // 测试2: 内核数据仍然可访问
+  // 检查我们之前定义的全局变量的值是否仍然正确。
+  if (test_data_integrity == 0xDEADBEEF) {
+    printf("Kernel data access test: PASSED (value is 0x%x)\n", test_data_integrity);
+  } else {
+    printf("Kernel data access test: FAILED\n");
+    panic("Data integrity check failed after paging.");
+  }
+
+  // 尝试修改数据
+  test_data_integrity = 0x12345678;
+  if (test_data_integrity == 0x12345678) {
+      printf("Kernel data write test: PASSED (new value is 0x%x)\n", test_data_integrity);
+  } else {
+      printf("Kernel data write test: FAILED\n");
+      panic("Data write failed after paging.");
+  }
+  
+  // 测试3: 设备访问仍然正常
+  // 再次调用printf，并使用不同的格式化字符，来全面地测试UART设备访问。
+  printf("Device access test (UART): PASSED (printf with %%d and %%s works: %d, %s)\n", 100, "OK");
+
+  printf("--- test_virtual_memory finished successfully ---\n\n");
+}
