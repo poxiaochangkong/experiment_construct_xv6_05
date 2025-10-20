@@ -1,7 +1,8 @@
-#include "riscv.h"
 #include "types.h"
+#include "riscv.h"
 #include "defs.h"
 
+extern char etext[];  // kernel.ld sets this to end of kernel code segment
 pagetable_t kernel_pagetable;
 
 // 辅助函数（内部使用）

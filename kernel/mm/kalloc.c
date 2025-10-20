@@ -78,17 +78,17 @@ alloc_pages(int n){
   return (void*)r;
 }
 
-void 
-destroy_pagetable(pagetable_t pt){
-  for(int i = 0; i < 512; i++){
-    pde_t pte = pt[i];
-    if((pte & PTE_V) && (pte & (PTE_R | PTE_W | PTE_X)) == 0){//有效且是二级或一级页表
-      uint64 child = PTE2PA(pte);
-      destroy_pagetable((pagetable_t)child);
-    }else if(pte & PTE_V){//有效且是叶子节点
-      uint64 pa = PTE2PA(pte);
-      free_page((void*)pa);
-    }
-  }
-  free_page((void*)pt);
-}
+// void 
+// destroy_pagetable(pagetable_t pt){
+//   for(int i = 0; i < 512; i++){
+//     pde_t pte = pt[i];
+//     if((pte & PTE_V) && (pte & (PTE_R | PTE_W | PTE_X)) == 0){//有效且是二级或一级页表
+//       uint64 child = PTE2PA(pte);
+//       destroy_pagetable((pagetable_t)child);
+//     }else if(pte & PTE_V){//有效且是叶子节点
+//       uint64 pa = PTE2PA(pte);
+//       free_page((void*)pa);
+//     }
+//   }
+//   free_page((void*)pt);
+// }
