@@ -1,0 +1,79 @@
+需要新建的核心文件
+kernel/trap.c
+
+
+参考 xv6 的 kernel/trap.c 
+
+
+目的： 这是中断和异常的C语言处理总入口。当 kernelvec.S 保存好上下文后，会跳转到这个文件中的C函数（例如 kerneltrap） 。
+
+核心功能：
+
+实现 trap_init() 函数，用于在S模式下设置中断向量表基地址寄存器（stvec），使其指向 kernelvec.S 中的中断入口 。
+
+实现 kerneltrap() 函数 。这个函数是S模式下所有陷阱（trap）的C语言分发中心。
+
+在 kerneltrap() 内部，你需要读取 scause 寄存器来判断陷阱的原因（是异常还是中断？） 。
+
+
+如果是时钟中断，就调用时钟中断处理函数（timer_interrupt） 。
+
+如果是其他异常（如实验6的系统调用），则进行相应处理 。
+
+kernel/kernelvec.S
+
+
+参考 xv6 的 kernel/kernelvec.S 
+
+
+目的： 这是S模式下的中断向量入口。当发生中断或异常时，CPU会跳转到 stvec 寄存器指向的地址，也就是这个文件的入口 。
+
+核心功能：
+
+
+保存上下文（Context Save）： 立即保存所有通用寄存器（a0-a7, t0-t6等）以及 sepc、sstatus 等CSR寄存器 。通常你会把它们保存在内核栈上（或者像xv6一样保存在一个trapframe结构中）。
+
+
+调用C处理函数： 保存完上下文后，调用 kernel/trap.c 中的 kerneltrap 函数。
+
+恢复上下文（Context Restore）： 当 kerneltrap 返回后，从栈上恢复所有寄存器。
+
+sret： 执行 sret 指令，从中断返回，继续执行被中断的代码。
+
+kernel/timer.c (推荐)
+
+参考 xv6 的 kernel/timer.c
+
+目的： 专门管理时钟中断。
+
+核心功能：
+
+实现 timer_init()：在 main 函数中调用，用来使能S模式下的时钟中断（通过写 sie 寄存器） 。
+
+
+实现 timer_interrupt()：这是时钟中断的C语言处理函数 。它会被 kerneltrap 调用。
+
+
+
+关键任务： 在 timer_interrupt 中，你需要使用SBI调用（sbi_set_timer）来“预约”下一次时钟中断 。这是实现周期性时钟中断的关键。
+
+
+（为实验5做准备）在这个函数里，你将来会增加一个计数器（ticks）并触发调度（yield）。
+
+需要修改的现有文件
+kernel/boot/start.c
+
+你在这个文件中已经正确地设置了M模式，并将中断/异常委托给了S模式（w_medeleg 和 w_mideleg）。
+
+需要补充： 你还需要在 main 函数（或者在 main 调用的初始化函数中）设置 stvec 寄存器，让它指向你新创建的 kernelvec.S 中的中断入口地址。（勘误：xv6在trap_init中设置w_stvec，这发生在S模式，而不是在start.c的M模式中）。
+
+
+M模式时钟设置： xv6在 start.c 中还调用了 timerinit() (M-mode) ，它会使能M模式的时钟中断（w_mie）。这样M模式的 timervec 才能收到中断，并通过SBI设置S模式的时钟中断。这是一个比较绕的点，你可以先参考 xv6/kernel/start.c 和 xv6/kernel/timer.c 中的 timerinit 部分。
+
+kernel/main.c
+
+需要补充： 在 main 函数中，kvminithart() 之后，你需要调用你新写的初始化函数，例如：
+
+trap_init() （来自 trap.c）
+
+timer_init() （来自 timer.c）
