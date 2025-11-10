@@ -295,3 +295,38 @@ w_satp(uint64 x)
 {
   asm volatile("csrw satp, %0" : : "r" (x));
 }
+
+
+// machine-mode cycle counter
+static inline uint64
+r_time()
+{
+  uint64 x;
+  asm volatile("csrr %0, time" : "=r" (x) );
+  return x;
+}
+
+// Supervisor Trap Cause
+static inline uint64
+r_scause()
+{
+  uint64 x;
+  asm volatile("csrr %0, scause" : "=r" (x) );
+  return x;
+}
+
+// Supervisor Trap Value
+static inline uint64
+r_stval()
+{
+  uint64 x;
+  asm volatile("csrr %0, stval" : "=r" (x) );
+  return x;
+}
+
+static inline int
+intr_get()
+{
+  uint64 x = r_sstatus();
+  return (x & SSTATUS_SIE) != 0;
+}

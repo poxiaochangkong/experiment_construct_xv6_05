@@ -60,5 +60,5 @@ kernelvec:
 
         addi sp, sp, 256
 
-        # return to whatever we were doing in the kernel.
+        # return to whatever we were doing in the kernel.finished by hardware
         sret

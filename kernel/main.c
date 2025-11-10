@@ -18,6 +18,7 @@ int main(){
     // test_virtual_memory();
     kvminit();       // create kernel page table
     kvminithart();   // turn on paging
+    trapinithart(); // initialize this hart's trap handling
     uart_puts("Hello, OS!\n");
     printf("Testinginteger:%d\n",42);
     printf("Testingnegative:%d\n",-123);

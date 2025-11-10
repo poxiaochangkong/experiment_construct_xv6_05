@@ -1,7 +1,8 @@
 //
 // low-level driver routines for 16550a UART.
 //
-
+#include "types.h"
+#include "defs.h"
 // the UART control registers are memory-mapped
 // at address UART0. this macro returns the
 // address of one of the registers.
@@ -77,6 +78,31 @@ uart_puts(char *s)
     if(*s == '\n')
       uart_putc('\r');
     uart_putc(*s++);
+  }
+}
+
+int
+uartgetc(void)
+{
+  if(ReadReg(LSR) & LSR_RX_READY){
+    // input data is ready.
+    return ReadReg(RHR);
+  } else {
+    return -1;
+  }
+}
+
+void
+uart_intr(void) //called by devintr()
+{
+  ReadReg(ISR); // acknowledge the interrupt
+
+  // read and process incoming characters, if any.
+  while(1){
+    int c = uartgetc();
+    if(c == -1)
+      break;
+    consoleintr(c);
   }
 }
 
