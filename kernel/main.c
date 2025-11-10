@@ -27,11 +27,11 @@ int main(){
     printf("Emptystring:%s","");
     clear_screen();
     pmm_init();         // physical page allocator
-    test_physical_memory();
-    test_pagetable();
-    test_virtual_memory();
-    // kvminit();       // create kernel page table
-    // kvminithart();   // turn on paging
+    // test_physical_memory();
+    // test_pagetable();
+    // test_virtual_memory();
+    kvminit();       // create kernel page table
+    kvminithart();   // turn on paging
     uart_puts("Hello, OS!\n");
     printf("Testinginteger:%d\n",42);
     printf("Testingnegative:%d\n",-123);
