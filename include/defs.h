@@ -6,6 +6,12 @@ void panic(char *s);
 int printf(char *fmt, ...);
 void assert(int condition);
 
+//uart.c
+void uart_intr(void);// called by devintr in trap.c ，读取键盘输入给控制台
+
+//console.c
+void consoleintr(int c);// called by uartintr in uart.c， 接受来自uart_intr的输入，do nothing for now
+
 //kalloc.c
 void pmm_init(void); // 初始化内存管理器，对应kalloc.c中的kinit函数
 void* alloc_page(void); // 分配一个物理页，对应kalloc.c中的kalloc函数
@@ -21,3 +27,12 @@ void dump_pagetable(pagetable_t pt, int level);// 实现页表打印功能用于
 void kvmmap(pagetable_t kpgtbl, uint64 va, uint64 pa, uint64 sz, int perm);
 void kvminit(void);// 初始化内核页表，对应vm.c中的kvminit函数
 void kvminithart(void);// 激活内核页表，对应vm.c中的kvminithart函数
+
+//trap.c
+void trapinithart(void); // 初始化trap处理函数，对应trap.c中的trapinithart函数
+
+//plic.c
+void plicinit(void); // 初始化PLIC，对应plic.c中的plicinit函数
+void plicinithart(void); // 初始化PLIC的hart相关设置，对应plic.c
+void plic_complete(int irq); // 通知PLIC中断处理完成，对应plic.c中的plic_complete函数
+int plic_claim(void); // 从PLIC获取待处理的中断号，对应plic.c中的plic_claim函数

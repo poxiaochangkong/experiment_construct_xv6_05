@@ -1,6 +1,10 @@
+#include "types.h"
+#include "defs.h"
+
+
 #define BACKSPACE 0x100
 void uart_putc(char c);
-void printf(char *fmt, ...);
+//void printf(char *fmt, ...);
 void
 consputc(int c)
 {
@@ -22,4 +26,11 @@ void
 clear_line(void)
 {
   printf("\033[K"); // ANSI escape code: clear line from cursor right
+}
+
+
+void 
+consoleintr(int c) // do nothing for now,called by uartintr in uart.c
+{
+  return ;
 }
