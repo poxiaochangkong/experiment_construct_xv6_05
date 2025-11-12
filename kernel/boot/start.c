@@ -50,6 +50,7 @@ start()
   // (可选，实验四内容) 配置时钟中断
   intr_on();
   timer_init();
+  w_mcounteren(0b111);
   w_stimecmp(r_time() + 10000);
 
   // 6. 执行 mret 指令，完成从 M-Mode 到 S-Mode 的切换
