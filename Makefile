@@ -59,7 +59,7 @@ clean:
 
 # 10. 定义运行 QEMU 的规则
 QEMU = qemu-system-riscv64
-QEMUOPTS = -machine virt -bios none -kernel kernel.elf -m 128M -nographic
+QEMUOPTS = -machine virt -bios none -cpu rv64,sstc=true -kernel kernel.elf -m 128M -nographic
 
 run: kernel.elf
 	$(QEMU) $(QEMUOPTS)

@@ -331,10 +331,17 @@ intr_get()
   return (x & SSTATUS_SIE) != 0;
 }
 
-// Machine Counter-Enable Register
+// Machine-mode Counter-Enable
 static inline void 
 w_mcounteren(uint64 x)
 {
-  // mcounteren CSR is 0x306
-  asm volatile("csrw 0x306, %0" : : "r" (x));
+  asm volatile("csrw mcounteren, %0" : : "r" (x));
+}
+
+static inline uint64
+r_mcounteren()
+{
+  uint64 x;
+  asm volatile("csrr %0, mcounteren" : "=r" (x) );
+  return x;
 }
