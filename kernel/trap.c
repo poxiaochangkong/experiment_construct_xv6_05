@@ -25,6 +25,12 @@ timer_init(void)
 {
   // 使能 S-Mode 的时钟中断 (SIE.STIE)
   w_sie(r_sie() | SIE_STIE);
+  
+  // enable the sstc extension (i.e. stimecmp).
+  w_menvcfg(r_menvcfg() | (1L << 63)); 
+  
+  // allow supervisor to use stimecmp and time.
+  w_mcounteren(r_mcounteren() | 2);
 }
 
 void
