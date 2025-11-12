@@ -45,7 +45,7 @@ timer_interrupt()//与pdf不同，由于start.c中的设置，如果想要使用
     // ask for the next timer interrupt. this also clears
     // the interrupt request. 1000000 is about a tenth
     // of a second.
-    w_stimecmp(r_time() + 1000000);
+    w_stimecmp(r_time() + 10000000);
 }
 
 int
