@@ -30,6 +30,8 @@ void kvminithart(void);// 激活内核页表，对应vm.c中的kvminithart函数
 
 //trap.c
 void trapinithart(void); // 初始化trap处理函数，对应trap.c中的trapinithart函数
+void timer_init(void); // 初始化时钟中断，对应trap.c中的timer_init函数
+void intr_on(void); // 开启中断，对应trap.c中的intr_on函数
 
 //plic.c
 void plicinit(void); // 初始化PLIC，对应plic.c中的plicinit函数

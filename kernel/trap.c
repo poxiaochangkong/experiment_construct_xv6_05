@@ -14,6 +14,20 @@ trapinithart(void) //call by main to initialize stvec for this hart
 }
 
 void
+intr_on(void)
+{
+  // 使能 S-Mode 的全局中断 (SSTATUS.SIE)
+  w_sstatus(r_sstatus() | SSTATUS_SIE);
+}
+
+void
+timer_init(void)
+{
+  // 使能 S-Mode 的时钟中断 (SIE.STIE)
+  w_sie(r_sie() | SIE_STIE);
+}
+
+void
 timer_interrupt()//与pdf不同，由于start.c中的设置，如果想要使用SBI，会陷入Smode->Mmode->Smode->...的死循环，所以直接抄xv6
 {
   

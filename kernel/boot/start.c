@@ -48,7 +48,9 @@ start()
   w_pmpcfg0(0xf);
 
   // (可选，实验四内容) 配置时钟中断
-  // timerinit();
+  intr_on();
+  timer_init();
+  w_stimecmp(r_time() + 10000);
 
   // 6. 执行 mret 指令，完成从 M-Mode 到 S-Mode 的切换
   // 这会使 CPU 跳转到 mepc (即 main 函数) 并将权限级别降为 S-Mode

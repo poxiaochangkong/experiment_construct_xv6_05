@@ -1,6 +1,6 @@
 #include "types.h"
 #include "defs.h"
-
+#include "riscv.h"
 void uartinit(void);
 void uart_puts(char *s);
 
@@ -32,5 +32,6 @@ int main(){
     printf("NULLstring:%s\n",(char*)0);
     printf("Emptystring:%s","");
     clear_screen();
+    //w_stimecmp(r_time() + 100);
     while(1);
 }
