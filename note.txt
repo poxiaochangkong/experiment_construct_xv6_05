@@ -119,3 +119,7 @@ scause代码对应trap
 代码 12：指令页故障 
 代码 13：加载页故障 
 代码 15：存储页故障
+
+实验4最重要的代码
+// enable the sstc extension (i.e. stimecmp).
+  w_menvcfg(r_menvcfg() | (1L << 63)); 
