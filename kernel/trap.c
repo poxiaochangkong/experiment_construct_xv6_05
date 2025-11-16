@@ -90,9 +90,9 @@ void
 kerneltrap()
 {
   int which_dev = 0;
-  uint64 sepc = r_sepc();
-  uint64 sstatus = r_sstatus();
-  uint64 scause = r_scause();
+  uint64 sepc = r_sepc();//保存PC，防止因为嵌套的中断丢失，通用寄存器的保存在kernelvec.S中
+  uint64 sstatus = r_sstatus();//同上
+  uint64 scause = r_scause();//同上
 
   printf("In kerneltrap\n");
   
@@ -113,7 +113,7 @@ kerneltrap()
 
   // the yield() may have caused some traps to occur,
   // so restore trap registers for use by kernelvec.S's sepc instruction.
-  w_sepc(sepc);
-  w_sstatus(sstatus);
+  w_sepc(sepc);//恢复PC
+  w_sstatus(sstatus);//同上 
 }
 
