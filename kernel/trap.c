@@ -39,7 +39,7 @@ timer_interrupt()//与pdf不同，由于start.c中的设置，如果想要使用
   
     ticks++;
     //wakeup(&ticks);
-    printf("tick %d\n", ticks);
+    //printf("tick %d\n", ticks);
   
 
     // ask for the next timer interrupt. this also clears
