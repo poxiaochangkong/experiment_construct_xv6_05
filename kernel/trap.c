@@ -31,6 +31,8 @@ timer_init(void)
   
   // allow supervisor to use stimecmp and time.
   w_mcounteren(r_mcounteren() | 2);
+
+  w_stimecmp(r_time() + 10000);
 }
 
 void
