@@ -50,5 +50,5 @@ int main(){
     printf("Emptystring:%s","");
     clear_screen();
     //w_stimecmp(r_time() + 100);
-    while(1);
+    scheduler();
 }

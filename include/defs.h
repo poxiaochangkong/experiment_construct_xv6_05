@@ -38,3 +38,6 @@ void plicinit(void); // 初始化PLIC，对应plic.c中的plicinit函数
 void plicinithart(void); // 初始化PLIC的hart相关设置，对应plic.c
 void plic_complete(int irq); // 通知PLIC中断处理完成，对应plic.c中的plic_complete函数
 int plic_claim(void); // 从PLIC获取待处理的中断号，对应plic.c中的plic_claim函数
+
+//proc.c
+void scheduler(void); // 进程调度函数，对应proc.c中的scheduler函数
