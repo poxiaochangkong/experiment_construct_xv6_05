@@ -92,21 +92,40 @@ kerneltrap()
   uint64 sstatus = r_sstatus();
   uint64 scause = r_scause();
 
-  printf("In kerneltrap\n");
+  //printf("In kerneltrap\n");
   
   if((sstatus & SSTATUS_SPP) == 0)
     panic("kerneltrap: not from supervisor mode");
   if(intr_get() != 0)
     panic("kerneltrap: interrupts enabled");
 
-  if((which_dev = devintr()) == 0){
-    // interrupt or trap from an unknown source
-    printf("scause=0x%lx sepc=0x%lx stval=0x%lx\n", scause, r_sepc(), r_stval());
-    panic("kerneltrap");
+  if((scause&0x8000000000000000L)){//中断处理
+    if ((which_dev = devintr()) == 0)
+    { // interrupt or trap from an unknown source
+      printf("scause=0x%lx sepc=0x%lx stval=0x%lx\n", scause, r_sepc(), r_stval());
+      panic("kerneltrap: unexpected interrupt");
+    }    
+  }else{//异常处理
+    switch (scause)
+    {
+    case 8: // system call
+      
+      break;
+    case 13: // load page fault
+      break;
+    case 15: // store/AMO page fault
+      break;
+    
+    default:
+      printf("scause=0x%lx sepc=0x%lx stval=0x%lx\n", scause, r_sepc(), r_stval());
+      panic("kerneltrap:exception");
+      break;
+    }
+
   }
 
   // give up the CPU if this is a timer interrupt.
-//   if(which_dev == 2 && myproc() != 0)
+ //  if(which_dev == 2 && myproc() != 0)
 //     yield();
 
   // the yield() may have caused some traps to occur,
