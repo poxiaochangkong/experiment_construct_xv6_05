@@ -51,4 +51,7 @@ int main(){
     clear_screen();
     //w_stimecmp(r_time() + 100);
     scheduler();
+    while(1) {
+        printf("error");
+    }
 }
