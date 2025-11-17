@@ -41,3 +41,7 @@ int plic_claim(void); // 从PLIC获取待处理的中断号，对应plic.c中的
 
 //proc.c
 void scheduler(void); // 进程调度函数，对应proc.c中的scheduler函数
+struct cpu* mycpu(void);// 获取当前CPU信息，对应proc.c中的mycpu函数
+void procinit(void); // 初始化进程表，对应proc.c中的procinit函数
+
+

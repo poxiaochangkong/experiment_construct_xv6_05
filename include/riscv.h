@@ -345,3 +345,11 @@ r_mcounteren()
   asm volatile("csrr %0, mcounteren" : "=r" (x) );
   return x;
 }
+
+static inline uint64
+r_tp()
+{
+  uint64 x;
+  asm volatile("mv %0, tp" : "=r" (x) );
+  return x;
+}
