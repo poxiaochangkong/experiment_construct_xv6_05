@@ -1,3 +1,7 @@
+struct spinlock; // 前向声明，避免循环依赖
+
+
+
 // defs.h
 void
 memset(void *dst, int c, unsigned int n);
@@ -43,5 +47,11 @@ int plic_claim(void); // 从PLIC获取待处理的中断号，对应plic.c中的
 void scheduler(void); // 进程调度函数，对应proc.c中的scheduler函数
 struct cpu* mycpu(void);// 获取当前CPU信息，对应proc.c中的mycpu函数
 void procinit(void); // 初始化进程表，对应proc.c中的procinit函数
+
+//spinlock.c
+void initlock(struct spinlock *lk, char *name); // 初始化自旋锁，对应spinlock.c中的initlock函数
+void acquire(struct spinlock *lk); // 获取自旋锁，对应spinlock.c中的acquire函数
+void release(struct spinlock *lk); // 释放自旋锁，对应spinlock.c中的release函数
+int holding(struct spinlock *lk); // 检查当前CPU是否持有自旋锁，对应spinlock.c中的holding函数
 
 

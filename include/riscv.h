@@ -281,6 +281,8 @@ w_pmpaddr0(uint64 x)
 
 #define MAKE_SATP(pagetable) (SATP_SV39 | (((uint64)pagetable) >> 12))
 
+#define MAXVA (1L << (9 + 9 + 9 + 12 - 1))
+
 //vm.c
 // flush the TLB.
 static inline void

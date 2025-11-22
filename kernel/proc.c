@@ -4,6 +4,7 @@
 #include "spinlock.h"
 #include "param.h"
 #include "proc.h"
+#include "memlayout.h"
 
 
 struct cpu cpus[NCPU];
