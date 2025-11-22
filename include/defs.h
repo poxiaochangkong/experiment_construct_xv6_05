@@ -35,7 +35,6 @@ void kvminithart(void);// 激活内核页表，对应vm.c中的kvminithart函数
 //trap.c
 void trapinithart(void); // 初始化trap处理函数，对应trap.c中的trapinithart函数
 void timer_init(void); // 初始化时钟中断，对应trap.c中的timer_init函数
-void intr_on(void); // 开启中断，对应trap.c中的intr_on函数
 
 //plic.c
 void plicinit(void); // 初始化PLIC，对应plic.c中的plicinit函数
@@ -53,5 +52,7 @@ void initlock(struct spinlock *lk, char *name); // 初始化自旋锁，对应sp
 void acquire(struct spinlock *lk); // 获取自旋锁，对应spinlock.c中的acquire函数
 void release(struct spinlock *lk); // 释放自旋锁，对应spinlock.c中的release函数
 int holding(struct spinlock *lk); // 检查当前CPU是否持有自旋锁，对应spinlock.c中的holding函数
+void push_off(void); // 关闭中断并记录状态，对应spinlock.c中的push_off函数
+void pop_off(void); // 恢复中断状态，对应spinlock.c中的pop_off函数
 
 

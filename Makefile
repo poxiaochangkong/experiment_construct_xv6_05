@@ -33,6 +33,7 @@ OBJS = \
 	kernel/plic.o \
 	kernel/proc.o \
 	kernel/swtch.o \
+	kernel/spinlock.o \
 
 # 6. 定义最终目标：内核文件 kernel
 #    它依赖于所有的 .o 文件和一个链接器脚本

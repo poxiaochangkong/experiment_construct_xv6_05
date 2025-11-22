@@ -13,12 +13,12 @@ trapinithart(void) //call by main to initialize stvec for this hart
   w_stvec((uint64)kernelvec);
 }
 
-void
-intr_on(void)
-{
-  // 使能 S-Mode 的全局中断 (SSTATUS.SIE)
-  w_sstatus(r_sstatus() | SSTATUS_SIE);
-}
+// void
+// intr_on(void)
+// {
+//   // 使能 S-Mode 的全局中断 (SSTATUS.SIE)
+//   w_sstatus(r_sstatus() | SSTATUS_SIE);
+// }在riscv.h中定义了
 
 void
 timer_init(void)

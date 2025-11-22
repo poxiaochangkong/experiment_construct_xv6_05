@@ -326,6 +326,21 @@ r_stval()
   return x;
 }
 
+// enable device interrupts
+static inline void
+intr_on()
+{
+  w_sstatus(r_sstatus() | SSTATUS_SIE);
+}
+
+// disable device interrupts
+static inline void
+intr_off()
+{
+  w_sstatus(r_sstatus() & ~SSTATUS_SIE);
+}
+
+// are device interrupts enabled?
 static inline int
 intr_get()
 {
