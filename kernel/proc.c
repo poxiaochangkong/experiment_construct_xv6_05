@@ -85,6 +85,7 @@ scheduler(void)
         c->proc = 0;
         found = 1;
       }
+      printf("scheduler: checked process %d, state %d\n", p->pid, p->state);
       release(&p->lock);
     }
     if(found == 0) {
