@@ -1,4 +1,6 @@
 struct spinlock; // 前向声明，避免循环依赖
+struct context;
+
 
 
 
@@ -55,4 +57,6 @@ int holding(struct spinlock *lk); // 检查当前CPU是否持有自旋锁，对�
 void push_off(void); // 关闭中断并记录状态，对应spinlock.c中的push_off函数
 void pop_off(void); // 恢复中断状态，对应spinlock.c中的pop_off函数
 
+// swtch.S
+void swtch(struct context*, struct context*);
 
