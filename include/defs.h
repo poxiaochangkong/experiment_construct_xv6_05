@@ -33,6 +33,7 @@ void dump_pagetable(pagetable_t pt, int level);// 实现页表打印功能用于
 void kvmmap(pagetable_t kpgtbl, uint64 va, uint64 pa, uint64 sz, int perm);
 void kvminit(void);// 初始化内核页表，对应vm.c中的kvminit函数
 void kvminithart(void);// 激活内核页表，对应vm.c中的kvminithart函数
+void unmap_page(pagetable_t pt, uint64 va);// 取消页表pt中虚拟地址va的映射，对应vm.c中的uvmunmap函数
 
 //trap.c
 void trapinithart(void); // 初始化trap处理函数，对应trap.c中的trapinithart函数
@@ -47,12 +48,16 @@ int plic_claim(void); // 从PLIC获取待处理的中断号，对应plic.c中的
 //proc.c
 void scheduler(void); // 进程调度函数，对应proc.c中的scheduler函数
 struct cpu* mycpu(void);// 获取当前CPU信息，对应proc.c中的mycpu函数
+struct proc* myproc(void); // 获取当前进程信息，对应proc.c中的myproc函数
 void procinit(void); // 初始化进程表，对应proc.c中的procinit函数
-struct proc* alloc_process(void); // 分配一个新的进程，对应proc.c中的allocproc函数
+//struct proc* alloc_process(void); // 分配一个新的进程，对应proc.c中的allocproc函数
 void free_process(struct proc *p); // 释放一个进程，对应proc.c中的freeproc函数
 int create_process(void (*entrypoint)(void)); // 创建一个新进程，对应proc.c中的userinit函数
 void exit_process(int status); // 终止当前进程，对应proc.c中的exit函数
-int wait_process(int *status); // 等待子进程结束，对应proc.c中的
+int wait_process(int *status); // 等待子进程结束，对应proc.c中的wait函数
+void wakeup(void *chan); // 唤醒在chan上睡眠的进程，对应proc.c中的wakeup函数
+void yield(void); // 让出CPU，对应proc.c中的yield函数
+
 
 //spinlock.c
 void initlock(struct spinlock *lk, char *name); // 初始化自旋锁，对应spinlock.c中的initlock函数

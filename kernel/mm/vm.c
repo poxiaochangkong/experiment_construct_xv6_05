@@ -130,6 +130,20 @@ kvmmap(pagetable_t kpgtbl, uint64 va, uint64 pa, uint64 sz, int perm)
     }
 }
 
+void
+unmap_page(pagetable_t pt, uint64 va)
+{
+    pde_t *pte;
+    pte = walk_lookup(pt, va);
+    if(pte == 0)
+        panic("unmap_page: address not mapped");
+    if((*pte & PTE_V) == 0)
+        panic("unmap_page: not mapped");
+    
+    *pte = 0; // 清除 PTE，断开映射
+    // 注意：这里不调用 free_page，因为物理页的生命周期由 proc.c 管理
+}
+
 void kvminithart(void) {
     // 激活内核页表
     w_satp(MAKE_SATP(kernel_pagetable));

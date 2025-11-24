@@ -35,6 +35,18 @@ mycpu(void)
   return c;
 }
 
+// Return the current struct proc *, or zero if none.
+struct proc*
+myproc(void)
+{
+  push_off();
+  struct cpu *c = mycpu();
+  struct proc *p = c->proc;
+  pop_off();
+  return p;
+}
+
+
 void
 procinit(void)
 {
@@ -144,18 +156,16 @@ proc_pagetable(struct proc *p)
   // at the highest user virtual address.
   // only the supervisor uses it, on the way
   // to/from user space, so not PTE_U.
-  if(mappages(pagetable, TRAMPOLINE, PGSIZE,
-              (uint64)trampoline, PTE_R | PTE_X) < 0){
-    uvmfree(pagetable, 0);
+  if(map_page(pagetable, TRAMPOLINE, (uint64)trampoline, PTE_R | PTE_X) < 0){
+    destroy_pagetable(pagetable);
     return 0;
   }
 
   // map the trapframe page just below the trampoline page, for
   // trampoline.S.
-  if(mappages(pagetable, TRAPFRAME, PGSIZE,
-              (uint64)(p->trapframe), PTE_R | PTE_W) < 0){
-    uvmunmap(pagetable, TRAMPOLINE, 1, 0);
-    uvmfree(pagetable, 0);
+  if(map_page(pagetable, TRAPFRAME, PGSIZE, PTE_R | PTE_W) < 0){
+    unmap_page(pagetable, TRAMPOLINE);
+    destroy_pagetable(pagetable);
     return 0;
   }
 
@@ -165,9 +175,9 @@ proc_pagetable(struct proc *p)
 void
 proc_freepagetable(pagetable_t pagetable, uint64 sz)
 {
-  uvmunmap(pagetable, TRAMPOLINE, 1, 0);
-  uvmunmap(pagetable, TRAPFRAME, 1, 0);
-  uvmfree(pagetable, sz);
+  unmap_page(pagetable, TRAMPOLINE);
+  unmap_page(pagetable, TRAPFRAME);
+  destroy_pagetable(pagetable);
 }
 
 // free a proc structure and the data hanging from it,
@@ -225,8 +235,8 @@ found:
   p->state = USED;
 
   // Allocate a trapframe page.
-  if((p->trapframe = (struct trapframe *)kalloc()) == 0){
-    freeproc(p);
+  if((p->trapframe = (struct trapframe *)alloc_page()) == 0){
+    free_process(p);
     release(&p->lock);
     return 0;
   }
@@ -234,7 +244,7 @@ found:
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
   if(p->pagetable == 0){
-    freeproc(p);
+    free_process(p);
     release(&p->lock);
     return 0;
   }
@@ -246,4 +256,53 @@ found:
   p->context.sp = p->kstack + PGSIZE;
 
   return p;
+}
+
+// Wake up all processes sleeping on channel chan.
+// Caller should hold the condition lock.
+void
+wakeup(void *chan)
+{
+  struct proc *p;
+
+  for(p = proc; p < &proc[NPROC]; p++) {
+    if(p != myproc()){
+      acquire(&p->lock);
+      if(p->state == SLEEPING && p->chan == chan) {
+        p->state = RUNNABLE;
+      }
+      release(&p->lock);
+    }
+  }
+}
+
+void
+sched(void)
+{
+  int intena;
+  struct proc *p = myproc();
+
+  if(!holding(&p->lock))
+    panic("sched p->lock");
+  if(mycpu()->noff != 1)
+    panic("sched locks");
+  if(p->state == RUNNING)
+    panic("sched RUNNING");
+  if(intr_get())
+    panic("sched interruptible");
+
+  intena = mycpu()->intena;
+  swtch(&p->context, &mycpu()->context);
+  mycpu()->intena = intena;
+}
+
+// Give up the CPU for one scheduling round.
+void
+yield(void)
+{
+  struct proc *p = myproc();
+  acquire(&p->lock);
+  p->state = RUNNABLE;
+  sched();
+  release(&p->lock);
 }

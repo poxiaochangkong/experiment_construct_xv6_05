@@ -2,10 +2,12 @@
 #include "defs.h"
 #include "riscv.h"
 #include "memlayout.h"
+#include "spinlock.h"
 
 extern void kernelvec();  //defined in kernelvec.S
 
 uint ticks;
+struct spinlock tickslock;
 
 void
 trapinithart(void) //call by main to initialize stvec for this hart
@@ -31,6 +33,8 @@ timer_init(void)
   
   // allow supervisor to use stimecmp and time.
   w_mcounteren(r_mcounteren() | 2);
+
+  initlock(&tickslock, "time");
 }
 
 void
@@ -38,7 +42,9 @@ timer_interrupt()//与pdf不同，由于start.c中的设置，如果想要使用
 {
   
     ticks++;
+    //acquire(&tickslock);
     //wakeup(&ticks);
+    //release(&tickslock);
     printf("tick %d\n", ticks);
   
 
@@ -125,8 +131,8 @@ kerneltrap()
   }
 
   // give up the CPU if this is a timer interrupt.
- //  if(which_dev == 2 && myproc() != 0)
-//     yield();
+  if(which_dev == 2 && myproc() != 0)//0检测，避免空进程引起崩溃
+     yield();
 
   // the yield() may have caused some traps to occur,
   // so restore trap registers for use by kernelvec.S's sepc instruction.
