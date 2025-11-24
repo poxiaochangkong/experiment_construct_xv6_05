@@ -3,6 +3,8 @@
 //
 #include "types.h"
 #include "defs.h"
+#include "riscv.h"
+#include "spinlock.h"
 // the UART control registers are memory-mapped
 // at address UART0. this macro returns the
 // address of one of the registers.
@@ -33,6 +35,7 @@
 #define WriteReg(reg, v) (*(Reg(reg)) = (v))
 
 
+extern struct  spinlock printlock;
 
 
 void
@@ -59,6 +62,7 @@ uartinit(void)
 
   // enable transmit and receive interrupts.
   WriteReg(IER, IER_TX_ENABLE | IER_RX_ENABLE);
+  initlock(&printlock, "printlock");
 }
 
 void

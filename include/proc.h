@@ -93,7 +93,7 @@ enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
     int pid;                     // Process ID
 
     // wait_lock must be held when using this:
-    struct proc *parent;         // Parent process
+    struct proc *parent;         // Parent process，
 
     // these are private to the process, so p->lock need not be held.
     uint64 kstack;               // Virtual address of kernel stack
