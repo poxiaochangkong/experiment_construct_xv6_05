@@ -90,6 +90,7 @@ scheduler(void)
         // Switch to chosen process.  It is the process's job
         // to release its lock and then reacquire it
         // before jumping back to us.
+        //新进程由forkret释放锁，已有进程由yield释放锁
         p->state = RUNNING;
         c->proc = p;
         swtch(&c->context, &p->context);
@@ -99,7 +100,7 @@ scheduler(void)
         c->proc = 0;//调度器模式
         found = 1;
       }
-      //printf("scheduler: checked process %d, state %d\n", p->pid, p->state);
+      printf("scheduler: checked process %d, state %d\n", p->pid, p->state);
       release(&p->lock);
     }
     if(found == 0) {
@@ -258,6 +259,37 @@ found:
   return p;
 }
 
+// entrypoint: 进程启动后要执行的函数指针
+int
+create_process(void (*entrypoint)(void))
+{
+  struct proc *p;
+
+  // 1. 调用底层的分配函数获取一个进程结构
+  // 注意：alloc_process 返回时已经持有了 p->lock
+  if((p = alloc_process()) == 0){
+    return -1;
+  }
+
+  // 2. 设置内核线程的入口点
+  // 在 forkret 函数中（proc.c），你会看到它检查 p->context.s0。
+  // 如果 s0 不为 0，它就会跳转到 s0 指向的地址执行。
+  // alloc_process 已经将 p->context.ra 设置为 forkret，所以
+  // 调度器 context switch 到这里时，会先跳到 forkret，然后 forkret 跳到 entrypoint。
+  p->context.s0 = (uint64)entrypoint;
+
+  // 3. 将进程状态设置为 RUNNABLE
+  // 这样调度器 (scheduler) 在遍历进程表时就能看到它，并选中它运行。
+  p->state = RUNNABLE;
+
+  // 4. 释放锁
+  // alloc_process 在返回前获取了锁，目的是防止其他 CPU 在我们配置好之前就看到这个进程。
+  // 现在配置完成，可以释放锁了。
+  release(&p->lock);
+
+  return p->pid;
+}
+
 // Wake up all processes sleeping on channel chan.
 // Caller should hold the condition lock.
 void
@@ -305,4 +337,17 @@ yield(void)
   p->state = RUNNABLE;
   sched();
   release(&p->lock);
+}
+
+void simple_task(void) {
+    printf("Hello from process! PID: %d\n", mycpu()->proc->pid);
+    while(1) {
+        // 让出 CPU，打印字符证明还在运行
+        printf("A"); 
+        // 简单的延时循环，防止打印太快
+        yield();
+        // 在实现了 yield 后可以使用 yield();
+        printf("B");
+        // 目前如果没有 yield，这个循环可能会一直占用 CPU 直到时钟中断（如果开了中断）
+    }
 }
