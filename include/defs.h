@@ -48,6 +48,11 @@ int plic_claim(void); // 从PLIC获取待处理的中断号，对应plic.c中的
 void scheduler(void); // 进程调度函数，对应proc.c中的scheduler函数
 struct cpu* mycpu(void);// 获取当前CPU信息，对应proc.c中的mycpu函数
 void procinit(void); // 初始化进程表，对应proc.c中的procinit函数
+struct proc* alloc_process(void); // 分配一个新的进程，对应proc.c中的allocproc函数
+void free_process(struct proc *p); // 释放一个进程，对应proc.c中的freeproc函数
+int create_process(void (*entrypoint)(void)); // 创建一个新进程，对应proc.c中的userinit函数
+void exit_process(int status); // 终止当前进程，对应proc.c中的exit函数
+int wait_process(int *status); // 等待子进程结束，对应proc.c中的
 
 //spinlock.c
 void initlock(struct spinlock *lk, char *name); // 初始化自旋锁，对应spinlock.c中的initlock函数

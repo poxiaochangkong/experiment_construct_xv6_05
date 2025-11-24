@@ -1,4 +1,5 @@
 #include "types.h"
+#include "spinlock.h"
 #include "defs.h"
 #include "riscv.h"
 extern char end[]; // first address after kernel.
@@ -9,6 +10,7 @@ struct run {
 };
 
 struct {
+  struct spinlock lock; // 新增锁
   struct run *freelist;
 } kmem;
 
@@ -18,7 +20,7 @@ void freerange(void *pa_start, void *pa_end);
 void
 pmm_init(void)
 {
-  
+  initlock(&kmem.lock, "kmem");
   freerange(end, (void*)PHYSTOP);//控制自end起始的地址
 }
 
@@ -44,24 +46,27 @@ free_page(void *page)
 
   r = (struct run*)page;
 
- 
+  acquire(&kmem.lock);//新增锁
   r->next = kmem.freelist;
   kmem.freelist = r;
+  release(&kmem.lock);//新增锁
   
 }
 
 void* 
 alloc_page(void){
   struct run *r;
+
+  acquire(&kmem.lock);//新增锁
   r = kmem.freelist;
   if(r)
     kmem.freelist = r->next;
-
+  release(&kmem.lock);//新增锁
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
   
-  if(!r)
+  if(!r)//分配失败,未来可考虑由异常来解决
     panic("alloc_page");
   return (void*)r;//返回分配的页的起始地址，分配失败为0
 }

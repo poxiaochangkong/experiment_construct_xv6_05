@@ -13,6 +13,8 @@ struct proc proc[NPROC];
 
 struct proc *initproc;
 
+extern char trampoline[]; // trampoline.S
+
 int nextpid = 1;
 struct spinlock pid_lock;
 struct spinlock wait_lock;//避免父进程和子进程在wait和exit时对proc表的并发访问，以及进程切换导致的多个子进程同一个pid
@@ -66,7 +68,7 @@ scheduler(void)
     // processes are waiting. Then turn them back off
     // to avoid a possible race between an interrupt
     // and wfi.
-    intr_on();
+    intr_on();//允许中断，如果已有中断，则进入中断处理程序
     intr_off();
 
     int found = 0;
@@ -82,7 +84,7 @@ scheduler(void)
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
-        c->proc = 0;
+        c->proc = 0;//调度器模式
         found = 1;
       }
       //printf("scheduler: checked process %d, state %d\n", p->pid, p->state);
@@ -93,4 +95,155 @@ scheduler(void)
       asm volatile("wfi");
     }
   }
+}
+
+void
+forkret(void)
+{
+  static int first = 1;
+  struct proc *p = myproc(); // 获取当前进程
+
+  // 1. 释放调度器(scheduler)在调用 swtch 前获取的锁
+  // 这是 forkret 最重要的职责之一
+  release(&p->lock); 
+
+  if (first) {
+    // 实验早期可能不需要文件系统初始化，仅打印提示
+    first = 0;
+    printf("init: first process started\n");
+  }
+
+  // 2. 适配实验五：执行内核线程任务
+  // 我们约定：在 create_process 时，将任务函数的地址保存在 context.s0 中
+  if (p->context.s0 != 0) {
+    // 将 s0 转换为函数指针并调用
+    void (*fn)(void) = (void(*)(void))p->context.s0;
+    fn();
+    
+    // 如果任务函数返回了（通常不应该返回，应该调用 exit），我们暂时 panic
+    panic("kernel thread returned");
+  }
+
+  // 3. 如果运行到这里，说明没有内核任务，且尚未实现用户态返回
+  // 在实现实验六之前，这里作为一个占位符
+  printf("forkret: no kernel task and userret not implemented\n");
+  panic("forkret");
+}
+
+pagetable_t
+proc_pagetable(struct proc *p)
+{
+  pagetable_t pagetable;
+
+  // An empty page table.
+  pagetable = create_pagetable();
+  if(pagetable == 0)
+    return 0;
+
+  // map the trampoline code (for system call return)
+  // at the highest user virtual address.
+  // only the supervisor uses it, on the way
+  // to/from user space, so not PTE_U.
+  if(mappages(pagetable, TRAMPOLINE, PGSIZE,
+              (uint64)trampoline, PTE_R | PTE_X) < 0){
+    uvmfree(pagetable, 0);
+    return 0;
+  }
+
+  // map the trapframe page just below the trampoline page, for
+  // trampoline.S.
+  if(mappages(pagetable, TRAPFRAME, PGSIZE,
+              (uint64)(p->trapframe), PTE_R | PTE_W) < 0){
+    uvmunmap(pagetable, TRAMPOLINE, 1, 0);
+    uvmfree(pagetable, 0);
+    return 0;
+  }
+
+  return pagetable;
+}
+
+void
+proc_freepagetable(pagetable_t pagetable, uint64 sz)
+{
+  uvmunmap(pagetable, TRAMPOLINE, 1, 0);
+  uvmunmap(pagetable, TRAPFRAME, 1, 0);
+  uvmfree(pagetable, sz);
+}
+
+// free a proc structure and the data hanging from it,
+// including user pages.
+// p->lock must be held.
+void
+free_process(struct proc *p)
+{
+  if(p->trapframe)
+    free_page((void*)p->trapframe);
+  p->trapframe = 0;
+  if(p->pagetable)
+    proc_freepagetable(p->pagetable, p->sz);
+  p->pagetable = 0;
+  p->sz = 0;
+  p->pid = 0;
+  p->parent = 0;
+  p->name[0] = 0;
+  p->chan = 0;
+  p->killed = 0;
+  p->xstate = 0;
+  p->state = UNUSED;
+}
+
+int
+allocpid()
+{
+  int pid;
+  
+  acquire(&pid_lock);
+  pid = nextpid;
+  nextpid = nextpid + 1;
+  release(&pid_lock);
+
+  return pid;
+}
+
+static struct proc*
+alloc_process(void)
+{
+  struct proc *p;
+
+  for(p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    if(p->state == UNUSED) {
+      goto found;
+    } else {
+      release(&p->lock);
+    }
+  }
+  return 0;
+
+found:
+  p->pid = allocpid();
+  p->state = USED;
+
+  // Allocate a trapframe page.
+  if((p->trapframe = (struct trapframe *)kalloc()) == 0){
+    freeproc(p);
+    release(&p->lock);
+    return 0;
+  }
+
+  // An empty user page table.
+  p->pagetable = proc_pagetable(p);
+  if(p->pagetable == 0){
+    freeproc(p);
+    release(&p->lock);
+    return 0;
+  }
+
+  // Set up new context to start executing at forkret,
+  // which returns to user space.
+  memset(&p->context, 0, sizeof(p->context));
+  p->context.ra = (uint64)forkret;//伪造返回地址
+  p->context.sp = p->kstack + PGSIZE;
+
+  return p;
 }
