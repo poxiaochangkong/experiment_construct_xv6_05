@@ -115,11 +115,13 @@ kerneltrap()
     switch (scause)
     {
     case 8: // system call
-      
+      panic("kerneltrap: system call from kernel");
       break;
     case 13: // load page fault
+      panic("kerneltrap: load page fault");
       break;
     case 15: // store/AMO page fault
+      panic("kerneltrap: store/AMO page fault");
       break;
     
     default:

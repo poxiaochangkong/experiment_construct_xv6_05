@@ -13,6 +13,7 @@ struct proc proc[NPROC];
 
 struct proc *initproc;
 
+extern pagetable_t kernel_pagetable;
 extern char trampoline[]; // trampoline.S
 
 int nextpid = 1;
@@ -55,7 +56,14 @@ procinit(void)
   for(p = proc; p < &proc[NPROC]; p++) {//初始化进程槽
       initlock(&p->lock, "proc");
       p->state = UNUSED;//空进程槽，未挂载程序
-      p->kstack = KSTACK((int) (p - proc));//紧随着trampoline的内核栈
+     char *pa = alloc_page(); // 1. 静态分配物理页
+      if(pa == 0) panic("kstack");
+      
+      uint64 va = KSTACK((int) (p - proc)); // 2. 计算虚拟地址
+      
+      kvmmap(kernel_pagetable, va, (uint64)pa, PGSIZE, PTE_R | PTE_W); // 3. 建立映射
+      
+      p->kstack = va; // 4. 赋值
   }
 }
 
@@ -93,6 +101,7 @@ scheduler(void)
         //新进程由forkret释放锁，已有进程由yield释放锁
         p->state = RUNNING;
         c->proc = p;
+        
         swtch(&c->context, &p->context);
 
         // Process is done running for now.
@@ -100,7 +109,7 @@ scheduler(void)
         c->proc = 0;//调度器模式
         found = 1;
       }
-      printf("scheduler: checked process %d, state %d\n", p->pid, p->state);
+      //printf("scheduler: checked process %d, state %d\n", p->pid, p->state);
       release(&p->lock);
     }
     if(found == 0) {
@@ -234,7 +243,7 @@ alloc_process(void)
 found:
   p->pid = allocpid();
   p->state = USED;
-
+  printf("alloc_process: allocated process %d\n", p->pid);
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)alloc_page()) == 0){
     free_process(p);
@@ -268,6 +277,7 @@ create_process(void (*entrypoint)(void))
   // 1. 调用底层的分配函数获取一个进程结构
   // 注意：alloc_process 返回时已经持有了 p->lock
   if((p = alloc_process()) == 0){
+    panic("create_process: alloc_process failed");
     return -1;
   }
 
