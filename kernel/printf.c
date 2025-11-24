@@ -110,9 +110,8 @@ printf(char *fmt, ...)
   va_end(ap);
 
  
-
-  return 0;
   release(&printlock);
+  return 0;
 }
 
 void
