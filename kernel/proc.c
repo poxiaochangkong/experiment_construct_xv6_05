@@ -56,7 +56,7 @@ procinit(void)
   for(p = proc; p < &proc[NPROC]; p++) {//初始化进程槽
       initlock(&p->lock, "proc");
       p->state = UNUSED;//空进程槽，未挂载程序
-     char *pa = alloc_page(); // 1. 静态分配物理页
+     char *pa = alloc_page(); // 1. 静态分配物理页,进程较为复杂时，此处可能出错
       if(pa == 0) panic("kstack");
       
       uint64 va = KSTACK((int) (p - proc)); // 2. 计算虚拟地址
@@ -355,9 +355,10 @@ void simple_task(void) {
         // 让出 CPU，打印字符证明还在运行
         printf("A"); 
         // 简单的延时循环，防止打印太快
-        yield();
+        //yield();
         // 在实现了 yield 后可以使用 yield();
         printf("B");
+        printf("\n");
         // 目前如果没有 yield，这个循环可能会一直占用 CPU 直到时钟中断（如果开了中断）
     }
 }

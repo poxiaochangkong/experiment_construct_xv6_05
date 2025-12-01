@@ -9,6 +9,14 @@ main函数持有锁的时候必须关闭中断，避免数据被中断篡改，�
 scheduler()可直接复制后观察是否可以运行
 可运行，在循环中可正常打印信息
 
+时间片约为1s，进程中只有simple_task的情况下可观察到simple_task短时间内大量执行
+
+内存分配目前存在的隐患与解决方案
+alloc_page 在内存耗尽时直接 Panic，导致系统崩溃，需要通过异常去解决
+procinit 分配的内核栈大小（4KB）可能不够，需要未来考虑动态分配内存
+free_page 缺乏双重释放 (Double Free) 检测，增加对freelist的检测即可
+kvmmap 的死循环风险，避免溢出的数即可
+
 1. 并发控制与锁 (Concurrency Control)
 struct spinlock lock;
 
