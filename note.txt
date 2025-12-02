@@ -17,6 +17,16 @@ procinit 分配的内核栈大小（4KB）可能不够，需要未来考虑动�
 free_page 缺乏双重释放 (Double Free) 检测，增加对freelist的检测即可
 kvmmap 的死循环风险，避免溢出的数即可
 
+待完成 (Missing)：
+
+[ ] 原子睡眠 (sleep) —— 高优先级，配合 wakeup 使用
+
+[ ] 进程自杀 (exit_process) —— 高优先级，管理生命周期终点
+
+[ ] 收尸机制 (wait_process) —— 高优先级，防止资源泄漏
+
+[ ] 进程复制 (fork) —— 取决于是否立即需要运行用户程序
+
 1. 并发控制与锁 (Concurrency Control)
 struct spinlock lock;
 

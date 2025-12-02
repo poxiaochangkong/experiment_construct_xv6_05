@@ -42,9 +42,9 @@ timer_interrupt()//与pdf不同，由于start.c中的设置，如果想要使用
 {
   
     ticks++;
-    //acquire(&tickslock);
-    //wakeup(&ticks);
-    //release(&tickslock);
+    acquire(&tickslock);
+    wakeup(&ticks);
+    release(&tickslock);
     printf("tick %d\n", ticks);
   
 

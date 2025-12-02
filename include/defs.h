@@ -50,6 +50,9 @@ void scheduler(void); // 进程调度函数，对应proc.c中的scheduler函数
 struct cpu* mycpu(void);// 获取当前CPU信息，对应proc.c中的mycpu函数
 struct proc* myproc(void); // 获取当前进程信息，对应proc.c中的myproc函数
 void procinit(void); // 初始化进程表，对应proc.c中的procinit函数
+void sleep(void *chan, struct spinlock *lk);//
+void wakeup(void *chan);//
+
 //struct proc* alloc_process(void); // 分配一个新的进程，对应proc.c中的allocproc函数
 void free_process(struct proc *p); // 释放一个进程，对应proc.c中的freeproc函数
 int create_process(void (*entrypoint)(void)); // 创建一个新进程，对应proc.c中的userinit函数

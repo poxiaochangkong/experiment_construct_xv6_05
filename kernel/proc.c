@@ -15,6 +15,8 @@ struct proc *initproc;
 
 extern pagetable_t kernel_pagetable;
 extern char trampoline[]; // trampoline.S
+extern struct spinlock tickslock;
+extern int ticks;
 
 int nextpid = 1;
 struct spinlock pid_lock;
@@ -47,6 +49,25 @@ myproc(void)
   return p;
 }
 
+void
+sched(void)
+{
+  int intena;
+  struct proc *p = myproc();
+
+  if(!holding(&p->lock))
+    panic("sched p->lock");
+  if(mycpu()->noff != 1)
+    panic("sched locks");
+  if(p->state == RUNNING)
+    panic("sched RUNNING");
+  if(intr_get())
+    panic("sched interruptible");
+
+  intena = mycpu()->intena;
+  swtch(&p->context, &mycpu()->context);
+  mycpu()->intena = intena;
+}
 
 void
 procinit(void)
@@ -300,6 +321,44 @@ create_process(void (*entrypoint)(void))
   return p->pid;
 }
 
+// Atomically release lock and sleep on chan.
+// Reacquires lock when awakened.
+void
+sleep(void *chan, struct spinlock *lk)
+{
+  struct proc *p = myproc();
+  
+  if(p == 0)
+    panic("sleep");
+
+  if(lk == 0)
+    panic("sleep without lk");
+
+  // 【修正点 1】：只有当 lk 不是 p->lock 时，才需要获取 p->lock
+  // 如果 lk 就是 p->lock，说明我们已经持有它了，不需要（也不能）再次 acquire
+  if(lk != &p->lock){
+    acquire(&p->lock);
+    release(lk);
+  }
+
+  // Go to sleep.
+  p->chan = chan;
+  p->state = SLEEPING;
+
+  sched();
+
+  // Tidy up.
+  p->chan = 0;
+
+  // 【修正点 2】：恢复锁的状态
+  // 如果 lk 不是 p->lock，我们需要释放 p->lock 并重新获取 lk
+  // 如果 lk 就是 p->lock，我们一直持有它，不需要做任何操作
+  if(lk != &p->lock){
+    release(&p->lock);
+    acquire(lk);
+  }
+}
+
 // Wake up all processes sleeping on channel chan.
 // Caller should hold the condition lock.
 void
@@ -318,25 +377,7 @@ wakeup(void *chan)
   }
 }
 
-void
-sched(void)
-{
-  int intena;
-  struct proc *p = myproc();
 
-  if(!holding(&p->lock))
-    panic("sched p->lock");
-  if(mycpu()->noff != 1)
-    panic("sched locks");
-  if(p->state == RUNNING)
-    panic("sched RUNNING");
-  if(intr_get())
-    panic("sched interruptible");
-
-  intena = mycpu()->intena;
-  swtch(&p->context, &mycpu()->context);
-  mycpu()->intena = intena;
-}
 
 // Give up the CPU for one scheduling round.
 void
@@ -349,7 +390,7 @@ yield(void)
   release(&p->lock);
 }
 
-void simple_task(void) {
+void simple_task(void) {//没有调用exit，导致该函数会被多次执行
     printf("Hello from process! PID: %d\n", mycpu()->proc->pid);
     while(1) {
         // 让出 CPU，打印字符证明还在运行
@@ -360,5 +401,8 @@ void simple_task(void) {
         printf("B");
         printf("\n");
         // 目前如果没有 yield，这个循环可能会一直占用 CPU 直到时钟中断（如果开了中断）
-    }
+        acquire(&tickslock);
+        sleep(&ticks,&tickslock);
+        release(&tickslock);
+      }
 }
