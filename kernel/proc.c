@@ -302,7 +302,13 @@ create_process(void (*entrypoint)(void))
     panic("create_process: alloc_process failed");
     return -1;
   }
-
+// 设置父进程：如果当前有进程在运行，则新进程是当前进程的孩子
+  struct proc *curr_p = myproc();
+  if(curr_p) {
+    acquire(&wait_lock); // 必须持有 wait_lock 才能修改父子关系
+    p->parent = curr_p;
+    release(&wait_lock);
+  }
   // 2. 设置内核线程的入口点
   // 在 forkret 函数中（proc.c），你会看到它检查 p->context.s0。
   // 如果 s0 不为 0，它就会跳转到 s0 指向的地址执行。
