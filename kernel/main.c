@@ -52,6 +52,7 @@ int main(){
     clear_screen();
     //w_stimecmp(r_time() + 100);
     procinit(); // initialize process table
+    userinit();
     create_process(simple_task);
     scheduler();
     while(1) {

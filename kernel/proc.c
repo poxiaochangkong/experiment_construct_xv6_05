@@ -73,6 +73,7 @@ void
 procinit(void)
 {
   struct proc *p;
+  initlock(&wait_lock, "wait_lock");
   //此处不需要使用锁，因为是在系统初始化阶段，尚无并发
   for(p = proc; p < &proc[NPROC]; p++) {//初始化进程槽
       initlock(&p->lock, "proc");
@@ -324,7 +325,7 @@ create_process(void (*entrypoint)(void))
 // Atomically release lock and sleep on chan.
 // Reacquires lock when awakened.
 void
-sleep(void *chan, struct spinlock *lk)
+sleep(void *chan, struct spinlock *lk)//需要持有锁才能调用sleep
 {
   struct proc *p = myproc();
   
@@ -377,6 +378,123 @@ wakeup(void *chan)
   }
 }
 
+// 退出当前进程。如果不返回，则变为 ZOMBIE 状态。
+void
+exit_process(int status)
+{
+  struct proc *p = myproc();
+
+  if(p == initproc)
+    panic("init exiting");
+
+  // 关闭所有打开的文件 (实验5阶段文件系统可能未就绪，可暂时注释)
+  // for(int fd = 0; fd < NOFILE; fd++){
+  //   if(p->ofile[fd]){
+  //     struct file *f = p->ofile[fd];
+  //     fileclose(f);
+  //     p->ofile[fd] = 0;
+  //   }
+  // }
+
+  // 释放当前目录 (同上，文件系统相关)
+  // begin_op();
+  // iput(p->cwd);
+  // end_op();
+  // p->cwd = 0;
+
+  // 获取 wait_lock，因为我们要改变父子关系并唤醒父进程
+  acquire(&wait_lock);
+
+  // 将当前进程的所有子进程“过继”给 init 进程
+  // 这样确保子进程退出后总有人能回收它们
+  struct proc *pp;
+  for(pp = proc; pp < &proc[NPROC]; pp++){
+    if(pp->parent == p){
+      pp->parent = initproc;
+      if(pp->state == ZOMBIE && initproc != 0){
+        wakeup(initproc);
+      }
+    }
+  }
+
+  // 唤醒父进程，让它在 wait_process 中醒来回收我们
+  if(p->parent)
+    wakeup(p->parent);
+
+  // 获取自己的锁，准备修改状态并调度
+  acquire(&p->lock);
+
+  p->xstate = status; // 记录退出状态
+  p->state = ZOMBIE;  // 变更为僵尸状态
+
+  // 此时已经持有了 p->lock，可以释放 wait_lock
+  release(&wait_lock);
+
+  // 调度器会释放 p->lock 并切换进程
+  // 当前进程将永远停在这里，直到被父进程回收（free_process）
+  sched();
+
+  panic("zombie exit");
+}
+
+// 等待子进程退出。
+// 如果找到退出的子进程，返回其 PID 并通过 status 返回退出状态。
+// 如果没有子进程，返回 -1。
+int
+wait_process(int *status)
+{
+  struct proc *np;
+  int havekids, pid;
+  struct proc *p = myproc();
+
+  // 必须持有 wait_lock 才能查看和修改子进程的 parent 指针及状态
+  acquire(&wait_lock);
+
+  for(;;){
+    // 扫描进程表，查找当前进程的子进程
+    havekids = 0;
+    for(np = proc; np < &proc[NPROC]; np++){
+      if(np->parent == p){
+        // 获取子进程锁以检查其状态
+        acquire(&np->lock);
+
+        havekids = 1;
+        if(np->state == ZOMBIE){
+          // 找到一个僵尸子进程，准备回收
+          pid = np->pid;
+          
+          // 如果提供了 status 地址，将退出状态复制过去
+          // 注意：如果 status 是用户空间地址，正式版 xv6 需要用 copyout
+          // 实验5阶段若在内核测试，直接赋值即可
+          if(status != 0)
+            *status = np->xstate;
+          
+          // 释放进程资源（内核栈、页表、trapframe等）
+          // free_process 定义在 proc.c 中，且假设已持有 np->lock
+          free_process(np);
+          
+          release(&np->lock);
+          release(&wait_lock);
+          return pid;
+        }
+        
+        // 子进程还没退出
+        release(&np->lock);
+      }
+    }
+
+    // 如果没有子进程，或者当前进程被杀死了，就不再等待
+    if(!havekids || p->killed){
+      release(&wait_lock);
+      return -1;
+    }
+
+    // 还有子进程在运行，在此休眠等待子进程唤醒（在 exit_process 中唤醒）
+    // sleep 会原子地释放 wait_lock 并让出 CPU
+    sleep(p, &wait_lock);
+  }
+}
+
 
 
 // Give up the CPU for one scheduling round.
@@ -390,19 +508,121 @@ yield(void)
   release(&p->lock);
 }
 
-void simple_task(void) {//没有调用exit，导致该函数会被多次执行
-    printf("Hello from process! PID: %d\n", mycpu()->proc->pid);
-    while(1) {
-        // 让出 CPU，打印字符证明还在运行
-        printf("A"); 
-        // 简单的延时循环，防止打印太快
-        //yield();
-        // 在实现了 yield 后可以使用 yield();
-        printf("B");
-        printf("\n");
-        // 目前如果没有 yield，这个循环可能会一直占用 CPU 直到时钟中断（如果开了中断）
-        acquire(&tickslock);
-        sleep(&ticks,&tickslock);
-        release(&tickslock);
-      }
+
+// init 进程的主体函数
+void
+init_task(void)
+{
+  printf("init: starting\n");
+  for(;;){
+    // 尝试回收僵尸子进程
+    int status;
+    int pid = wait_process(&status);
+
+    if(pid >= 0){
+      // 成功回收了一个僵尸进程
+      printf("init: reaped zombie pid %d\n", pid);
+    } else {
+      // 目前没有需要回收的子进程，或者没有子进程
+      // 让出 CPU，避免占满时间片，等待下一次被唤醒
+      // 注意：在 exit_process 中，会有 wakeup(initproc) 唤醒我们
+      yield(); 
+    }
+  }
+}
+
+// 创建系统第一个进程
+void
+userinit(void)
+{
+  struct proc *p;
+
+  // 1. 分配进程控制块
+  p = alloc_process();
+  
+  // 2. [关键] 设置全局 initproc 指针
+  initproc = p;
+  
+  // 3. 设置上下文，让它运行 init_task
+  p->context.s0 = (uint64)init_task; // 按照我们之前的约定，s0存放入口地址
+  p->context.ra = (uint64)forkret;   // 返回地址设为 forkret
+  
+  // 4. 设置状态为就绪
+  p->state = RUNNABLE;
+
+  // 5. 释放锁（alloc_process 返回时持有锁）
+  release(&p->lock);
+  
+  printf("userinit: created init process pid %d\n", p->pid);
+}
+
+// kernel/proc.c
+
+void simple_task(void) {
+    struct proc *p = myproc();
+    
+    // 判定角色逻辑：
+    // 1. p->parent == 0: 说明是由 main 函数(无进程上下文)创建的，它是测试的发起者。
+    // 2. p->parent == initproc: 如果你实现了 userinit，它可能是由 init 收养的(视具体实现而定)，也可以视为独立任务。
+    // 3. 其他情况: 说明是由上面的父进程创建的，它是子进程。
+    
+    int is_tester = (p->parent == 0 || (initproc && p->parent == initproc));
+
+    printf("Process PID %d is running...\n", p->pid);
+
+    if (is_tester) {
+        // === 父进程逻辑 ===
+        printf("\n=== TEST START: Single Function Exit/Wait ===\n");
+        printf("[Parent] PID %d: I am the parent. Spawning child...\n", p->pid);
+
+        // 递归调用 create_process，让子进程也执行 simple_task
+        // 但子进程进来后，会进入 else 分支
+        int child_pid = create_process(simple_task);
+        
+        if (child_pid < 0) {
+            printf("[Parent] Failed to create child.\n");
+            while(1);
+        }
+
+        printf("[Parent] Created child PID %d. Waiting for it to exit...\n", child_pid);
+        
+        int status = -999;
+        int waited_pid = wait_process(&status);
+        
+        if (waited_pid == child_pid) {
+            printf("[Parent] Catch exited child PID %d.\n", waited_pid);
+            printf("[Parent] Exit status: %d (Expected: 88)\n", status);
+            
+            if (status == 88) {
+                printf("=== TEST PASSED ===\n");
+            } else {
+                printf("=== TEST FAILED: Wrong status ===\n");
+            }
+        } else {
+            printf("[Parent] Error: wait_process returned %d\n", waited_pid);
+        }
+        
+        // 测试结束，父进程进入死循环，打印心跳证明系统没挂
+        printf("[Parent] Test finished. Idling...\n");
+        while(1) {
+            // 空循环或简单的延时，避免刷屏
+            for(volatile int i=0; i<10000000; i++); 
+            printf(".");
+        }
+    } else {
+        // === 子进程逻辑 ===
+        printf("  [Child] PID %d: I am the child.\n", p->pid);
+        
+        // 验证父指针是否正确
+        if (p->parent) {
+            printf("  [Child] My parent is PID %d.\n", p->parent->pid);
+        } else {
+            printf("  [Child] Error: I have no parent!\n");
+        }
+
+        printf("  [Child] Exiting with status 88...\n");
+        
+        // 子进程退出，测试 wait 能否获取到 88 这个状态码
+        exit_process(88);
+    }
 }

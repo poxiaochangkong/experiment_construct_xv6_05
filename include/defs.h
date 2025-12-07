@@ -52,6 +52,9 @@ struct proc* myproc(void); // 获取当前进程信息，对应proc.c中的mypro
 void procinit(void); // 初始化进程表，对应proc.c中的procinit函数
 void sleep(void *chan, struct spinlock *lk);//
 void wakeup(void *chan);//
+int wait_process(int *status);//
+void exit_process(int status);//
+void userinit(void);
 
 //struct proc* alloc_process(void); // 分配一个新的进程，对应proc.c中的allocproc函数
 void free_process(struct proc *p); // 释放一个进程，对应proc.c中的freeproc函数
