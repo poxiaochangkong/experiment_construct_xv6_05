@@ -281,6 +281,8 @@ w_pmpaddr0(uint64 x)
 
 #define MAKE_SATP(pagetable) (SATP_SV39 | (((uint64)pagetable) >> 12))
 
+#define MAXVA (1L << (9 + 9 + 9 + 12 - 1))
+
 //vm.c
 // flush the TLB.
 static inline void
@@ -324,6 +326,21 @@ r_stval()
   return x;
 }
 
+// enable device interrupts
+static inline void
+intr_on()
+{
+  w_sstatus(r_sstatus() | SSTATUS_SIE);
+}
+
+// disable device interrupts
+static inline void
+intr_off()
+{
+  w_sstatus(r_sstatus() & ~SSTATUS_SIE);
+}
+
+// are device interrupts enabled?
 static inline int
 intr_get()
 {
@@ -343,5 +360,13 @@ r_mcounteren()
 {
   uint64 x;
   asm volatile("csrr %0, mcounteren" : "=r" (x) );
+  return x;
+}
+
+static inline uint64
+r_tp()
+{
+  uint64 x;
+  asm volatile("mv %0, tp" : "=r" (x) );
   return x;
 }

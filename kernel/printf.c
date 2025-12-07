@@ -1,6 +1,9 @@
 #include <stdarg.h>
 #include "types.h"
 #include "defs.h"
+#include "spinlock.h"
+
+struct spinlock printlock;
 
 static char digits[] = "0123456789abcdef";
 void consputc(int);
@@ -42,6 +45,7 @@ printptr(uint64 x)
 int
 printf(char *fmt, ...)
 {
+  acquire(&printlock);
   va_list ap;
   int i, cx, c0, c1, c2;
   char *s;
@@ -106,13 +110,14 @@ printf(char *fmt, ...)
   va_end(ap);
 
  
-
+  release(&printlock);
   return 0;
 }
 
 void
 panic(char *s)
 {
+  printlock.locked = 0; // disable locking
   printf("panic: ");
   printf("%s\n", s);
   for(;;)

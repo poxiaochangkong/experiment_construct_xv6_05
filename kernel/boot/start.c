@@ -40,7 +40,7 @@ start()
   // 4. 将所有中断和异常委托给 S-Mode 处理
   // 这是后续实验（中断、系统调用）的关键
   w_medeleg(0xffff);
-  w_mideleg(0xffff);
+  w_mideleg((1<<5)|(1<<9));// 委托时钟中断和外部中断
 
   // 5. 设置 PMP (物理内存保护)，允许 S-Mode 访问所有物理内存
   // 这是一个简化但有效的设置
@@ -51,7 +51,7 @@ start()
   intr_on();
   timer_init();
   w_mcounteren(0b111);
-  
+  w_stimecmp(r_time() + 10000);
 
   // 6. 执行 mret 指令，完成从 M-Mode 到 S-Mode 的切换
   // 这会使 CPU 跳转到 mepc (即 main 函数) 并将权限级别降为 S-Mode

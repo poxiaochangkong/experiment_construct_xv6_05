@@ -1,128 +1,147 @@
-需要新建的核心文件
-kernel/trap.c
 
 
-参考 xv6 的 kernel/trap.c 
+实验5
 
+main函数持有锁的时候必须关闭中断，避免数据被中断篡改，同时避免中断处理程序没有持有锁导致程序卡死
+需要为printf语句增加一个锁来避免被打断
+需要为kalloc.c中的各个函数加锁
 
-目的： 这是中断和异常的C语言处理总入口。当 kernelvec.S 保存好上下文后，会跳转到这个文件中的C函数（例如 kerneltrap） 。
+scheduler()可直接复制后观察是否可以运行
+可运行，在循环中可正常打印信息
 
-核心功能：
+时间片约为1s，进程中只有simple_task的情况下可观察到simple_task短时间内大量执行
 
-实现 trap_init() 函数，用于在S模式下设置中断向量表基地址寄存器（stvec），使其指向 kernelvec.S 中的中断入口 。
+内存分配目前存在的隐患与解决方案
+alloc_page 在内存耗尽时直接 Panic，导致系统崩溃，需要通过异常去解决
+procinit 分配的内核栈大小（4KB）可能不够，需要未来考虑动态分配内存
+free_page 缺乏双重释放 (Double Free) 检测，增加对freelist的检测即可
+kvmmap 的死循环风险，避免溢出的数即可
 
-实现 kerneltrap() 函数 。这个函数是S模式下所有陷阱（trap）的C语言分发中心。
+待完成 (Missing)：
 
-在 kerneltrap() 内部，你需要读取 scause 寄存器来判断陷阱的原因（是异常还是中断？） 。
+[ ] 原子睡眠 (sleep) —— 高优先级，配合 wakeup 使用
 
+[ ] 进程自杀 (exit_process) —— 高优先级，管理生命周期终点
 
-如果是时钟中断，就调用时钟中断处理函数（timer_interrupt） 。
+[ ] 收尸机制 (wait_process) —— 高优先级，防止资源泄漏
 
-如果是其他异常（如实验6的系统调用），则进行相应处理 。
+[ ] 进程复制 (fork) —— 取决于是否立即需要运行用户程序
 
-kernel/kernelvec.S
+1. 并发控制与锁 (Concurrency Control)
+struct spinlock lock;
 
+作用：这是进程的自旋锁。
 
-参考 xv6 的 kernel/kernelvec.S 
 
+为什么要用：正如手册中提到的，多核环境下需要防止竞态条件 。它主要保护进程的状态 (state) 和其他关键属性（如 chan, pid 等），确保在进程状态转换（如从 RUNNABLE 变为 RUNNING）时的原子性。
 
-目的： 这是S模式下的中断向量入口。当发生中断或异常时，CPU会跳转到 stvec 寄存器指向的地址，也就是这个文件的入口 。
+2. 受锁保护的状态信息 (Protected State)
+注意：访问以下字段时，必须持有 p->lock。
 
-核心功能：
+enum procstate state;
 
 
-保存上下文（Context Save）： 立即保存所有通用寄存器（a0-a7, t0-t6等）以及 sepc、sstatus 等CSR寄存器 。通常你会把它们保存在内核栈上（或者像xv6一样保存在一个trapframe结构中）。
+作用：表示进程当前的生命周期状态 。
 
 
-调用C处理函数： 保存完上下文后，调用 kernel/trap.c 中的 kerneltrap 函数。
+取值：包括 UNUSED (未使用), USED (已分配), RUNNABLE (就绪), RUNNING (运行中), SLEEPING (睡眠), ZOMBIE (僵尸) 。调度器 (scheduler) 依据此字段决定是否运行该进程。
 
-恢复上下文（Context Restore）： 当 kerneltrap 返回后，从栈上恢复所有寄存器。
+void *chan;
 
-sret： 执行 sret 指令，从中断返回，继续执行被中断的代码。
 
-kernel/timer.c (推荐)
+作用：等待通道 (Channel) 。
 
-参考 xv6 的 kernel/timer.c
+详解：当进程调用 sleep() 进入睡眠状态时，这里会记录它在等待什么（通常是一个内核对象的地址，如锁的地址或管道的地址）。wakeup() 函数会查找所有 chan 匹配的进程并将它们唤醒。
 
-目的： 专门管理时钟中断。
+int killed;
 
-核心功能：
 
-实现 timer_init()：在 main 函数中调用，用来使能S模式下的时钟中断（通过写 sie 寄存器） 。
+作用：被杀标记 。
 
+详解：当其他进程对该进程调用 kill 系统调用时，该值会被置为非零。进程在特定的检查点（如系统调用返回前）会检查此标记，如果为真，则主动退出。
 
-实现 timer_interrupt()：这是时钟中断的C语言处理函数 。它会被 kerneltrap 调用。
+int xstate;
 
 
+作用：退出状态码 (Exit Status) 。
 
-关键任务： 在 timer_interrupt 中，你需要使用SBI调用（sbi_set_timer）来“预约”下一次时钟中断 。这是实现周期性时钟中断的关键。
+详解：当进程调用 exit(status) 结束时，status 会保存在这里。父进程调用 wait() 时会读取这个值，从而知道子进程是正常结束还是报错结束。
 
+int pid;
 
-（为实验5做准备）在这个函数里，你将来会增加一个计数器（ticks）并触发调度（yield）。
 
-需要修改的现有文件
-kernel/boot/start.c
+作用：进程 ID 。
 
-你在这个文件中已经正确地设置了M模式，并将中断/异常委托给了S模式（w_medeleg 和 w_mideleg）。
+详解：这是操作系统唯一标识一个进程的整数编号。
 
-需要补充： 你还需要在 main 函数（或者在 main 调用的初始化函数中）设置 stvec 寄存器，让它指向你新创建的 kernelvec.S 中的中断入口地址。（勘误：xv6在trap_init中设置w_stvec，这发生在S模式，而不是在start.c的M模式中）。
+3. 进程层级关系 (Hierarchy)
+注意：访问此字段需持有全局的 wait_lock。
 
+struct proc *parent;
 
-M模式时钟设置： xv6在 start.c 中还调用了 timerinit() (M-mode) ，它会使能M模式的时钟中断（w_mie）。这样M模式的 timervec 才能收到中断，并通过SBI设置S模式的时钟中断。这是一个比较绕的点，你可以先参考 xv6/kernel/start.c 和 xv6/kernel/timer.c 中的 timerinit 部分。
 
-kernel/main.c
+作用：指向父进程的指针 。
 
-需要补充： 在 main 函数中，kvminithart() 之后，你需要调用你新写的初始化函数，例如：
+详解：xv6 维护了父子进程树。当子进程退出变为 ZOMBIE 时，必须由父进程通过 wait() 来回收其资源。如果父进程先退出，子进程会被“过继”给 init 进程。
 
-trap_init() （来自 trap.c）
+4. 进程私有资源 (Private Resources)
+注意：这些字段通常由进程自己访问，或者在进程未运行时被调度器访问，因此不需要持有 p->lock。
 
-timer_init() （来自 timer.c）
+uint64 kstack;
 
-xv6
-自定义 Gem
-这是一个非常精准的问题！答案是：不完全是。
 
-硬件自动执行的操作是跳转到 kernelvec.S 的地址，而不是执行 kernelvec.S 本身。
+作用：内核栈的虚拟地址 。
 
-kernelvec.S 是软件代码（汇编指令），而硬件执行的是一组固定的、自动的微操作。
+详解：当进程从用户态陷入内核态（如系统调用、中断）时，CPU 会切换到这个栈上执行内核代码。每个进程都有自己独立的内核栈。
 
-我们来分解一下这个瞬间：
+uint64 sz;
 
-1. 硬件的自动操作
-当QEMU模拟的CPU硬件检测到时钟中断信号时，它自动且原子地执行以下硬件操作：
 
+作用：进程用户内存的大小（字节数） 。
 
-保存PC：将当前正在执行的指令地址（PC）保存到 sepc 寄存器中 。
+详解：标记了用户地址空间的上限。sbrk 系统调用会修改这个值来增长或缩小堆内存。
 
+pagetable_t pagetable;
 
-记录原因：在 scause 寄存器中写入一个代码，表示这是一个“S-Mode时钟中断” 。
 
-保存状态并关闭中断：在 sstatus 寄存器中保存当前的中断使能状态，然后关闭S-Mode的全局中断（SIE位），防止中断嵌套。
+作用：用户页表 。
 
+详解：这是该进程私有的页表根节点。它定义了进程的虚拟地址如何映射到物理内存。在上下文切换时，内核会将此页表加载到 SATP 寄存器中。
 
-读取 stvec 并跳转：这是最关键的一步。硬件会读取 stvec 寄存器（监督模式陷阱向量基址寄存器） 中由xv6内核事先设置好的地址。
+struct trapframe *trapframe;
 
-强制跳转：硬件强行将PC（程序计数器）设置为从 stvec 读取到的那个地址。
 
+作用：陷阱帧 。
 
 
-lab 4
-----------
-本次主要完成S-mode的trap
+详解：这是一个非常关键的数据结构，通常映射在虚拟地址 TRAMPOLINE 的正下方。当发生用户态到内核态的切换（Trampoline 跳转）时，用户寄存器的值会被保存在这里；当返回用户态时，从这里恢复寄存器 。
 
-中断处理过程
-硬件检测到中断-保存PC到sepc-写入scause寄存器-sstatus寄存器保存当前中断使能状态，关闭SIE
--跳转到stvec所在的地址-处理中断-返回sepc处地址
+struct context context;
 
-scause代码对应trap
-代码 8：用户模式环境调用 (即 系统调用) 
-代码 12：指令页故障 
-代码 13：加载页故障 
-代码 15：存储页故障
 
-实验4最重要的代码
-// enable the sstc extension (i.e. stimecmp).
-  w_menvcfg(r_menvcfg() | (1L << 63)); 
+作用：内核调度上下文 。
 
 
-待完成事项：各个代码初始化的顺序调整，以及初始化的功能调整，例如将stimecmp的启用从start转到timer_init中
+详解：用于内核线程之间的切换 (swtch 函数) 。它保存了被调用者保存寄存器（如 ra, sp, s0-s11）。注意区分它与 trapframe：trapframe 保存的是用户态的寄存器，context 保存的是内核态调度切换时的寄存器。
+
+5. 文件系统与调试 (File System & Debug)
+struct file *ofile[NOFILE];
+
+
+作用：打开文件表 。
+
+详解：这是一个指针数组。文件描述符 fd 就是这个数组的下标。例如，ofile[1] 指向标准输出的文件结构体。
+
+struct inode *cwd;
+
+
+作用：当前工作目录 。
+
+详解：指向当前进程所在目录的 inode。解析相对路径（如 ./file）时会用到它。
+
+char name[16];
+
+
+作用：进程名称 。
+
+详解：主要用于调试。当你按下 Ctrl+P 打印进程列表时，显示的名称就是存在这里的。

@@ -118,7 +118,7 @@ kvmmap(pagetable_t kpgtbl, uint64 va, uint64 pa, uint64 sz, int perm)
     if (sz == 0) // 处理大小为0的情况
         return;
 
-    a = PGROUNDDOWN(va);
+    a = PGROUNDDOWN(va);//去除低12位
     last = PGROUNDDOWN(va + sz - 1); // 修改这里
     for(;;){ // 使用无限循环，在内部判断
         if(map_page(kpgtbl, a, pa, perm) != 0)
@@ -128,6 +128,20 @@ kvmmap(pagetable_t kpgtbl, uint64 va, uint64 pa, uint64 sz, int perm)
         a += PGSIZE;
         pa += PGSIZE;
     }
+}
+
+void
+unmap_page(pagetable_t pt, uint64 va)
+{
+    pde_t *pte;
+    pte = walk_lookup(pt, va);
+    if(pte == 0)
+        panic("unmap_page: address not mapped");
+    if((*pte & PTE_V) == 0)
+        panic("unmap_page: not mapped");
+    
+    *pte = 0; // 清除 PTE，断开映射
+    // 注意：这里不调用 free_page，因为物理页的生命周期由 proc.c 管理
 }
 
 void kvminithart(void) {

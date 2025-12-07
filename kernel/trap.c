@@ -2,10 +2,12 @@
 #include "defs.h"
 #include "riscv.h"
 #include "memlayout.h"
+#include "spinlock.h"
 
 extern void kernelvec();  //defined in kernelvec.S
 
 uint ticks;
+struct spinlock tickslock;
 
 void
 trapinithart(void) //call by main to initialize stvec for this hart
@@ -13,12 +15,12 @@ trapinithart(void) //call by main to initialize stvec for this hart
   w_stvec((uint64)kernelvec);
 }
 
-void
-intr_on(void)
-{
-  // 使能 S-Mode 的全局中断 (SSTATUS.SIE)
-  w_sstatus(r_sstatus() | SSTATUS_SIE);
-}
+// void
+// intr_on(void)
+// {
+//   // 使能 S-Mode 的全局中断 (SSTATUS.SIE)
+//   w_sstatus(r_sstatus() | SSTATUS_SIE);
+// }在riscv.h中定义了
 
 void
 timer_init(void)
@@ -32,7 +34,7 @@ timer_init(void)
   // allow supervisor to use stimecmp and time.
   w_mcounteren(r_mcounteren() | 2);
 
-  w_stimecmp(r_time() + 10000);
+  initlock(&tickslock, "time");
 }
 
 void
@@ -40,8 +42,10 @@ timer_interrupt()//与pdf不同，由于start.c中的设置，如果想要使用
 {
   
     ticks++;
-    //wakeup(&ticks);
-    //printf("tick %d\n", ticks);
+    acquire(&tickslock);
+    wakeup(&ticks);
+    release(&tickslock);
+    printf("tick %d\n", ticks);
   
 
     // ask for the next timer interrupt. this also clears
@@ -90,30 +94,51 @@ void
 kerneltrap()
 {
   int which_dev = 0;
-  uint64 sepc = r_sepc();//保存PC，防止因为嵌套的中断丢失，通用寄存器的保存在kernelvec.S中
-  uint64 sstatus = r_sstatus();//同上
-  uint64 scause = r_scause();//同上
+  uint64 sepc = r_sepc();
+  uint64 sstatus = r_sstatus();
+  uint64 scause = r_scause();
 
-  printf("In kerneltrap\n");
+  //printf("In kerneltrap\n");
   
   if((sstatus & SSTATUS_SPP) == 0)
     panic("kerneltrap: not from supervisor mode");
   if(intr_get() != 0)
     panic("kerneltrap: interrupts enabled");
 
-  if((which_dev = devintr()) == 0){
-    // interrupt or trap from an unknown source
-    printf("scause=0x%lx sepc=0x%lx stval=0x%lx\n", scause, r_sepc(), r_stval());
-    panic("kerneltrap");
+  if((scause&0x8000000000000000L)){//中断处理
+    if ((which_dev = devintr()) == 0)
+    { // interrupt or trap from an unknown source
+      printf("scause=0x%lx sepc=0x%lx stval=0x%lx\n", scause, r_sepc(), r_stval());
+      panic("kerneltrap: unexpected interrupt");
+    }    
+  }else{//异常处理
+    switch (scause)
+    {
+    case 8: // system call
+      panic("kerneltrap: system call from kernel");
+      break;
+    case 13: // load page fault
+      panic("kerneltrap: load page fault");
+      break;
+    case 15: // store/AMO page fault
+      panic("kerneltrap: store/AMO page fault");
+      break;
+    
+    default:
+      printf("scause=0x%lx sepc=0x%lx stval=0x%lx\n", scause, r_sepc(), r_stval());
+      panic("kerneltrap:exception");
+      break;
+    }
+
   }
 
   // give up the CPU if this is a timer interrupt.
-//   if(which_dev == 2 && myproc() != 0)
-//     yield();
+  if(which_dev == 2 && myproc() != 0)//0检测，避免空进程引起崩溃
+     yield();
 
   // the yield() may have caused some traps to occur,
   // so restore trap registers for use by kernelvec.S's sepc instruction.
-  w_sepc(sepc);//恢复PC
-  w_sstatus(sstatus);//同上 
+  w_sepc(sepc);
+  w_sstatus(sstatus);
 }
 
